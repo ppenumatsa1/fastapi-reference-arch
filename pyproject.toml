@@ -1,0 +1,29 @@
+[project]
+name = "todo-api"
+version = "0.1.0"
+description = "Reference FastAPI TODO service with PostgreSQL"
+authors = [{ name = "Example", email = "example@example.com" }]
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
