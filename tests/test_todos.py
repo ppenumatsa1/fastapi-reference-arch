@@ -1,10 +1,12 @@
-from fastapi.testclient import TestClient
+import pytest
+from httpx import AsyncClient
 
 API_PREFIX = "/api/v1"
 
 
-def test_create_todo(client: TestClient):
-    response = client.post(
+@pytest.mark.asyncio
+async def test_create_todo(client: AsyncClient):
+    response = await client.post(
         f"{API_PREFIX}/todos/",
         json={
             "title": "Test todo",
@@ -17,19 +19,23 @@ def test_create_todo(client: TestClient):
     assert data["title"] == "Test todo"
 
 
-def test_list_todos(client: TestClient):
-    client.post(f"{API_PREFIX}/todos/", json={"title": "List todo"})
-    response = client.get(f"{API_PREFIX}/todos/")
+@pytest.mark.asyncio
+async def test_list_todos(client: AsyncClient):
+    await client.post(f"{API_PREFIX}/todos/", json={"title": "List todo"})
+    response = await client.get(f"{API_PREFIX}/todos/")
     assert response.status_code == 200
     data = response.json()
     assert len(data) >= 1
 
 
-def test_update_todo(client: TestClient):
-    created = client.post(f"{API_PREFIX}/todos/", json={"title": "Original"}).json()
+@pytest.mark.asyncio
+async def test_update_todo(client: AsyncClient):
+    created = (
+        await client.post(f"{API_PREFIX}/todos/", json={"title": "Original"})
+    ).json()
     todo_id = created["id"]
 
-    response = client.put(
+    response = await client.put(
         f"{API_PREFIX}/todos/{todo_id}",
         json={"title": "Updated", "is_completed": True},
     )
@@ -37,12 +43,15 @@ def test_update_todo(client: TestClient):
     assert response.json()["title"] == "Updated"
 
 
-def test_delete_todo(client: TestClient):
-    created = client.post(f"{API_PREFIX}/todos/", json={"title": "Delete me"}).json()
+@pytest.mark.asyncio
+async def test_delete_todo(client: AsyncClient):
+    created = (
+        await client.post(f"{API_PREFIX}/todos/", json={"title": "Delete me"})
+    ).json()
     todo_id = created["id"]
 
-    response = client.delete(f"{API_PREFIX}/todos/{todo_id}")
+    response = await client.delete(f"{API_PREFIX}/todos/{todo_id}")
     assert response.status_code == 204
 
-    follow_up = client.get(f"{API_PREFIX}/todos/{todo_id}")
+    follow_up = await client.get(f"{API_PREFIX}/todos/{todo_id}")
     assert follow_up.status_code == 404

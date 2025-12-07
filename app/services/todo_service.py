@@ -3,28 +3,28 @@
 from collections.abc import Sequence
 
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging.logger import get_logger
-from app.core.schemas import TodoCreate, TodoRead, TodoUpdate
+from app.core.schemas.todo import TodoCreate, TodoRead, TodoUpdate
 from app.repo.todo_repository import TodoRepository
 
 logger = get_logger(__name__)
 
 
 class TodoService:
-    def __init__(self, session: Session):
+    def __init__(self, session: AsyncSession):
         self.repository = TodoRepository(session)
 
-    def list_todos(self) -> Sequence[TodoRead]:
+    async def list_todos(self) -> Sequence[TodoRead]:
         logger.debug("List todos invoked")
-        todos = self.repository.list()
+        todos = await self.repository.list()
         logger.debug("List todos completed", extra={"count": len(todos)})
         return [TodoRead.model_validate(todo) for todo in todos]
 
-    def get_todo(self, todo_id: int) -> TodoRead:
+    async def get_todo(self, todo_id: int) -> TodoRead:
         logger.debug("Get todo invoked", extra={"todo_id": todo_id})
-        todo = self.repository.get(todo_id)
+        todo = await self.repository.get(todo_id)
         if not todo:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -33,31 +33,31 @@ class TodoService:
         logger.debug("Get todo completed", extra={"todo_id": todo_id})
         return TodoRead.model_validate(todo)
 
-    def create_todo(self, payload: TodoCreate) -> TodoRead:
+    async def create_todo(self, payload: TodoCreate) -> TodoRead:
         logger.info("Create todo invoked")
-        todo = self.repository.create(payload)
+        todo = await self.repository.create(payload)
         logger.info("Create todo completed", extra={"todo_id": todo.id})
         return TodoRead.model_validate(todo)
 
-    def update_todo(self, todo_id: int, payload: TodoUpdate) -> TodoRead:
+    async def update_todo(self, todo_id: int, payload: TodoUpdate) -> TodoRead:
         logger.info("Update todo invoked", extra={"todo_id": todo_id})
-        todo = self.repository.get(todo_id)
+        todo = await self.repository.get(todo_id)
         if not todo:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Todo not found",
             )
-        updated = self.repository.update(todo, payload)
+        updated = await self.repository.update(todo, payload)
         logger.info("Update todo completed", extra={"todo_id": todo_id})
         return TodoRead.model_validate(updated)
 
-    def delete_todo(self, todo_id: int) -> None:
+    async def delete_todo(self, todo_id: int) -> None:
         logger.info("Delete todo invoked", extra={"todo_id": todo_id})
-        todo = self.repository.get(todo_id)
+        todo = await self.repository.get(todo_id)
         if not todo:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Todo not found",
             )
-        self.repository.delete(todo)
+        await self.repository.delete(todo)
         logger.info("Delete todo completed", extra={"todo_id": todo_id})

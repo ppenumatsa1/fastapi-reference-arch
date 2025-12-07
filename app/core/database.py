@@ -1,7 +1,9 @@
 """Database session and engine helpers."""
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from collections.abc import AsyncIterator
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
 
 from app.core.config import get_settings
 
@@ -11,14 +13,19 @@ class Base(DeclarativeBase):
 
 
 settings = get_settings()
-engine = create_engine(settings.database_url, echo=settings.database_echo, future=True)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+async_engine = create_async_engine(
+    settings.async_database_url,
+    echo=settings.database_echo,
+    future=True,
+)
+async_session_factory = async_sessionmaker(
+    bind=async_engine,
+    autoflush=False,
+    expire_on_commit=False,
+)
 
 
-def get_db():
-    """Provide a scoped session for FastAPI dependencies."""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+async def get_db() -> AsyncIterator[AsyncSession]:
+    """Provide a scoped async session for FastAPI dependencies."""
+    async with async_session_factory() as session:
+        yield session

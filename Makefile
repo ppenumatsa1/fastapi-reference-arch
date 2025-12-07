@@ -3,7 +3,7 @@ COMPOSE ?= docker compose
 COMPOSE_FILE ?= docker-compose.yml
 PYTHON ?= python3
 
-.PHONY: help setup deps precommit migrate seed up down lint format test
+.PHONY: help setup deps precommit migrate seed up up-build down lint format test
 
 help: ## Display available targets
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -28,6 +28,9 @@ seed: ## Seed the database with baseline TODO data
 
 up: ## Start the Docker Compose stack (API + PostgreSQL)
 	$(COMPOSE) -f $(COMPOSE_FILE) up -d
+
+up-build: ## Rebuild images and start the Docker Compose stack
+	$(COMPOSE) -f $(COMPOSE_FILE) up --build -d
 
 down: ## Stop the Docker Compose stack
 	$(COMPOSE) -f $(COMPOSE_FILE) down

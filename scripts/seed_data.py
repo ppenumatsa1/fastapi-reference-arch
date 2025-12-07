@@ -2,6 +2,7 @@
 """Seed baseline TODO data for local development."""
 from __future__ import annotations
 
+import asyncio
 import sys
 from pathlib import Path
 
@@ -10,7 +11,9 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from app.core.database import SessionLocal  # noqa: E402
+from sqlalchemy import select  # noqa: E402
+
+from app.core.database import async_session_factory  # noqa: E402
 from app.core.models.todo import Todo  # noqa: E402
 
 SAMPLE_TODOS = (
@@ -29,13 +32,13 @@ SAMPLE_TODOS = (
 )
 
 
-def main() -> None:
-    with SessionLocal() as session:
+async def seed() -> None:
+    async with async_session_factory() as session:
         created = 0
         for payload in SAMPLE_TODOS:
-            record = (
-                session.query(Todo).filter(Todo.title == payload["title"]).one_or_none()
-            )
+            stmt = select(Todo).where(Todo.title == payload["title"])
+            result = await session.execute(stmt)
+            record = result.scalars().one_or_none()
             if record:
                 continue
 
@@ -46,8 +49,12 @@ def main() -> None:
             print("Sample TODOs already seeded; nothing to do.")
             return
 
-        session.commit()
+        await session.commit()
         print(f"Seeded {created} todo items.")
+
+
+def main() -> None:
+    asyncio.run(seed())
 
 
 if __name__ == "__main__":

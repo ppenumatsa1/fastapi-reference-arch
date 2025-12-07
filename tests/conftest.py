@@ -1,45 +1,47 @@
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
 from app.main import app
 
 
-@pytest.fixture()
-def test_db_session() -> Session:
-    engine = create_engine(
-        "sqlite+pysqlite:///:memory:",
+@pytest_asyncio.fixture()
+async def async_session_factory() -> async_sessionmaker[AsyncSession]:
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
         future=True,
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    TestingSessionLocal = sessionmaker(
+    async_session_factory = async_sessionmaker(
         bind=engine,
         autoflush=False,
-        autocommit=False,
-        future=True,
+        expire_on_commit=False,
     )
-    Base.metadata.create_all(bind=engine)
-    session = TestingSessionLocal()
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
     try:
-        yield session
+        yield async_session_factory
     finally:
-        session.close()
-        engine.dispose()
+        await engine.dispose()
 
 
-@pytest.fixture()
-def client(test_db_session: Session) -> TestClient:
-    def override_get_db():
-        try:
-            yield test_db_session
-        finally:
-            pass
+@pytest_asyncio.fixture()
+async def client(
+    async_session_factory: async_sessionmaker[AsyncSession],
+) -> AsyncClient:
+    async def override_get_db():
+        async with async_session_factory() as session:
+            yield session
 
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as test_client:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport, base_url="http://testserver"
+    ) as test_client:
         yield test_client
     app.dependency_overrides.clear()
