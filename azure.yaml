@@ -13,6 +13,10 @@ hooks:
     shell: sh
     run: ./infra/hooks/postprovision.sh
     continueOnError: false
+  predeploy:
+    shell: sh
+    run: ./infra/scripts/run_migrations.sh
+    continueOnError: false
 
 services:
   api:
