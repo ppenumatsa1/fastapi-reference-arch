@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": {
+      "value": "${AZURE_ENV_NAME}"
+    },
+    "location": {
+      "value": "${AZURE_LOCATION=canadacentral}"
+    },
+    "serviceName": {
+      "value": "api"
+    },
+    "vnetCidr": {
+      "value": "10.24.0.0/16"
+    },
+    "acaSubnetCidr": {
+      "value": "10.24.0.0/24"
+    },
+    "postgresSubnetCidr": {
+      "value": "10.24.1.0/28"
+    },
+    "postgresAdminPassword": {
+      "value": "${POSTGRES_ADMIN_PASSWORD}"
+    },
+    "aadAdministrator": {
+      "value": {
+        "principalName": "${AAD_ADMIN_PRINCIPAL_NAME}",
+        "principalType": "ServicePrincipal",
+        "principalId": "${AAD_ADMIN_PRINCIPAL_ID}",
+        "tenantId": "${AAD_ADMIN_TENANT_ID}",
+        "objectId": "${AAD_ADMIN_PRINCIPAL_ID}"
+      }
+    },
+    "environmentVariables": {
+      "value": []
+    }
+  }
+}

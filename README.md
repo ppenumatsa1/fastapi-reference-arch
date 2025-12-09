@@ -76,3 +76,33 @@ Run `make help` to see the latest list as new automation hooks are added.
 ## Project Structure
 
 See [`docs/design/projectstructure.md`](docs/design/projectstructure.md) for the full directory tree and naming conventions. Additional documentation (PRD, architecture notes, tech stack, user flows) lives under [`docs/design/`](docs/design/).
+
+## Azure Deployment
+
+Deploy to Azure Container Apps with PostgreSQL using Azure Developer CLI (azd):
+
+```bash
+# One-command deployment (infrastructure + code)
+azd up
+
+# Or provision infrastructure only
+azd provision
+
+# Deploy application updates
+azd deploy
+```
+
+The `azd` hooks automatically handle:
+
+- Service Principal creation for PostgreSQL AAD authentication
+- Secure password generation
+- Environment variable configuration
+- Resource group and Azure resource provisioning
+
+See [`infra/bicep/README.md`](infra/bicep/README.md) for detailed infrastructure documentation and customization options.
+
+### Prerequisites for Azure Deployment
+
+- Azure CLI: `az login` with appropriate subscription permissions
+- Azure Developer CLI: install from [aka.ms/azd](https://aka.ms/azd)
+- Permissions to create Service Principals and assign RBAC roles

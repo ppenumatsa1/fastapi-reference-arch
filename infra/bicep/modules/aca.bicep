@@ -1,0 +1,122 @@
+param location string
+param environmentName string
+param resourceToken string
+param tags object
+param serviceName string
+param logAnalyticsCustomerId string
+param logAnalyticsWorkspaceId string
+param acaSubnetId string
+param registryLoginServer string
+param userAssignedIdentityId string
+param minReplicas int = 0
+param maxReplicas int = 3
+param containerCpu int = 1
+param containerMemory string = '2Gi'
+param targetPort int = 8000
+param corsConfig object = {
+  allowedOrigins: [
+    '*'
+  ]
+  allowedMethods: [
+    'GET'
+    'POST'
+    'PUT'
+    'DELETE'
+    'OPTIONS'
+    'PATCH'
+  ]
+  allowedHeaders: [
+    '*'
+  ]
+  exposeHeaders: [
+    '*'
+  ]
+  maxAge: 3600
+  allowCredentials: false
+}
+param environmentVariables array = []
+
+var managedEnvironmentName = 'azace${resourceToken}'
+var containerAppName = 'azaca${resourceToken}'
+var logAnalyticsSharedKey = listKeys(logAnalyticsWorkspaceId, '2022-10-01').primarySharedKey
+
+resource managedEnvironment 'Microsoft.App/managedEnvironments@2024-02-02-preview' = {
+  name: managedEnvironmentName
+  location: location
+  tags: union(tags, {
+    'azd-env-name': environmentName
+  })
+  properties: {
+    appLogsConfiguration: {
+      destination: 'log-analytics'
+      logAnalyticsConfiguration: {
+        customerId: logAnalyticsCustomerId
+        sharedKey: logAnalyticsSharedKey
+      }
+    }
+    vnetConfiguration: {
+      infrastructureSubnetId: acaSubnetId
+    }
+    workloadProfiles: [
+      {
+        name: 'consumption'
+        workloadProfileType: 'Consumption'
+      }
+    ]
+  }
+}
+
+resource containerApp 'Microsoft.App/containerApps@2024-02-02-preview' = {
+  name: containerAppName
+  location: location
+  tags: union(tags, {
+    'azd-env-name': environmentName
+    'azd-service-name': serviceName
+  })
+  identity: {
+    type: 'SystemAssigned, UserAssigned'
+    userAssignedIdentities: {
+      '${userAssignedIdentityId}': {}
+    }
+  }
+  properties: {
+    managedEnvironmentId: managedEnvironment.id
+    configuration: {
+      ingress: {
+        external: true
+        targetPort: targetPort
+        transport: 'Auto'
+        corsPolicy: corsConfig
+      }
+      registries: [
+        {
+          server: registryLoginServer
+          identity: userAssignedIdentityId
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: serviceName
+          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+          resources: {
+            cpu: containerCpu
+            memory: containerMemory
+          }
+          env: environmentVariables
+        }
+      ]
+      scale: {
+        minReplicas: minReplicas
+        maxReplicas: maxReplicas
+      }
+    }
+  }
+}
+
+output containerAppId string = containerApp.id
+output containerAppPrincipalId string = containerApp.identity.principalId
+output containerAppUrl string = containerApp.properties.configuration.?ingress.?fqdn
+output outboundIpAddresses array = containerApp.properties.outboundIpAddresses ?? []
+output managedEnvironmentId string = managedEnvironment.id

@@ -11,6 +11,9 @@ __pycache__/
 venv/
 ENV/
 
+# Azure Developer CLI
+.azure/
+
 # Tooling
 .mypy_cache/
 .pytest_cache/
