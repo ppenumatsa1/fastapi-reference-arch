@@ -47,6 +47,22 @@ class JsonFormatter(logging.Formatter):
         if record.exc_info:
             log_record["exception"] = self.formatException(record.exc_info)
 
+        # Add OpenTelemetry trace context if available
+        try:
+            from app.core.observability.telemetry import (
+                get_current_span_id,
+                get_current_trace_id,
+            )
+
+            trace_id = get_current_trace_id()
+            span_id = get_current_span_id()
+            if trace_id:
+                log_record["trace_id"] = trace_id
+            if span_id:
+                log_record["span_id"] = span_id
+        except Exception:
+            pass
+
         for key, value in record.__dict__.items():
             if key.startswith("_"):
                 continue

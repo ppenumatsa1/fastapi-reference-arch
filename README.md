@@ -23,25 +23,11 @@ Provide a reference-grade TODO management API that demonstrates FastAPI best pra
 
 Create and activate a virtual environment, copy the sample env file, then start the Docker stack so PostgreSQL is available:
 
-```bash
+````bash
 python -m venv .venv
 source .venv/bin/activate
 cp .env.example .env
 make up
-```
-
-> Ensure Docker Desktop/daemon is running before invoking `make up`.
-
-Once the stack is running, stream FastAPI logs with `docker compose logs -f api`. If you prefer an
-all-in-one command that starts the stack and streams immediately, run `docker compose up` (stop
-with `Ctrl+C`, which also stops the containers).
-
-`make setup` installs project requirements, wires up `pre-commit`, runs all Alembic migrations, and seeds baseline TODO data:
-
-```bash
-make setup
-```
-
 Environment flags worth tweaking while developing:
 
 - `APP_DEBUG=true` keeps FastAPI in debug mode so tracebacks surface immediately.
@@ -52,7 +38,7 @@ Stop the containers when you are done:
 
 ```bash
 make down
-```
+````
 
 You can still run FastAPI directly if needed while the database container is up:
 
@@ -79,30 +65,44 @@ See [`docs/design/projectstructure.md`](docs/design/projectstructure.md) for the
 
 ## Azure Deployment
 
-Deploy to Azure Container Apps with PostgreSQL using Azure Developer CLI (azd):
+Deploy to Azure Container Apps with PostgreSQL Flexible Server using Azure Developer CLI (azd). The application uses **Managed Identity** for passwordless database authentication and **Application Insights** for telemetry.
+
+### Quick Start
 
 ```bash
-# One-command deployment (infrastructure + code)
-azd up
-
-# Or provision infrastructure only
+# Provision infrastructure (one-time or when infra changes)
+azd env set MY_IP_ADDRESS <your.ip.addr>
 azd provision
 
-# Deploy application updates
+# Deploy app + run migrations via CI/CD (see .github/workflows/ci.yml)
 azd deploy
 ```
 
-The `azd` hooks automatically handle:
+### Key Features
 
-- Service Principal creation for PostgreSQL AAD authentication
-- Secure password generation
-- Environment variable configuration
-- Resource group and Azure resource provisioning
+- **Passwordless Authentication**: Uses User-Assigned Managed Identity (UAMI) for PostgreSQL access
+- **Public PG with Firewall**: Postgres is public but locked to ACA outbound IPs + your IP
+- **Application Insights**: OpenTelemetry instrumentation with automatic trace/span correlation
+- **Environment-aware**: Seamlessly switches between local Docker (password) and Azure (AAD)
+- **CI/CD Migrations**: Database schema changes run in GitHub Actions before deployment
 
-See [`infra/bicep/README.md`](infra/bicep/README.md) for detailed infrastructure documentation and customization options.
+### What Gets Created
 
-### Prerequisites for Azure Deployment
+- Container Registry for Docker images
+- Container Apps Environment with VNet integration
+- PostgreSQL Flexible Server with AAD authentication
+- User-Assigned Managed Identity for app authentication
+- Application Insights for telemetry and monitoring
+- Firewall rules limiting Postgres access to ACA + developer IPs
 
-- Azure CLI: `az login` with appropriate subscription permissions
+### Documentation
+
+- **[Deployment Guide](docs/DEPLOYMENT.md)**: Deployment walkthrough with MI setup
+- **[Infrastructure README](infra/bicep/README.md)**: Bicep modules and configuration details
+
+### Prerequisites
+
+- Azure CLI: `az login` with subscription permissions
 - Azure Developer CLI: install from [aka.ms/azd](https://aka.ms/azd)
-- Permissions to create Service Principals and assign RBAC roles
+- PostgreSQL client (`psql`) if you want local psql access during troubleshooting
+- Permissions to create RBAC assignments

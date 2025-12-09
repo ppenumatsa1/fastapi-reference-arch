@@ -28,10 +28,12 @@ param administratorLogin string = 'aad_admin'
 param administratorPassword string
 @description('Azure AD administrator declaration for the server.')
 param aadAdministrator object
-@description('Subnet ID for VNet integration (private access).')
-param delegatedSubnetId string
-@description('Private DNS zone ID for PostgreSQL.')
-param privateDnsZoneId string
+@description('Enable or disable public network access (Enabled to use firewall allow lists).')
+@allowed([
+  'Enabled'
+  'Disabled'
+])
+param publicNetworkAccess string = 'Enabled'
 
 var serverName = 'azpgs${resourceToken}'
 
@@ -58,8 +60,7 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' =
       storageSizeGB: storageSizeGb
     }
     network: {
-      delegatedSubnetResourceId: delegatedSubnetId
-      privateDnsZoneArmResourceId: privateDnsZoneId
+      publicNetworkAccess: publicNetworkAccess
     }
     highAvailability: {
       mode: 'Disabled'
@@ -84,4 +85,5 @@ resource postgresAadAdmin 'Microsoft.DBforPostgreSQL/flexibleServers/administrat
 }
 
 output serverId string = postgresServer.id
+output serverName string = postgresServer.name
 output fullyQualifiedDomainName string = postgresServer.properties.fullyQualifiedDomainName

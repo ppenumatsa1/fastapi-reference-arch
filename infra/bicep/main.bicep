@@ -17,8 +17,6 @@ param postgresSubnetCidr string = '10.24.1.0/28'
 @description('Secure administrator password for PostgreSQL flexible server.')
 @secure()
 param postgresAdminPassword string
-@description('Azure AD administrator definition for PostgreSQL flexible server. Expected properties: principalName, principalType, principalId, tenantId.')
-param aadAdministrator object
 @description('Optional array of environment variables applied to the container app. Each entry should include name/value or name/secretRef.')
 param environmentVariables array = []
 
@@ -26,6 +24,14 @@ var resourceToken = uniqueString(subscription().id, resourceGroup().id, location
 var baseTags = union(tags, {
   'azd-env-name': environmentName
 })
+
+// Use the user-assigned managed identity as the AAD administrator for PostgreSQL
+var aadAdministrator = {
+  principalName: identityModule.outputs.clientId
+  principalType: 'ServicePrincipal'
+  principalId: identityModule.outputs.principalId
+  tenantId: tenant().tenantId
+}
 
 module identityModule './modules/identity.bicep' = {
   params: {
@@ -66,14 +72,6 @@ module networkModule './modules/network.bicep' = {
   }
 }
 
-module privateDnsModule './modules/privatedns.bicep' = {
-  params: {
-    environmentName: environmentName
-    tags: baseTags
-    vnetId: networkModule.outputs.vnetId
-  }
-}
-
 module postgresModule './modules/postgres.bicep' = {
   params: {
     location: location
@@ -82,8 +80,7 @@ module postgresModule './modules/postgres.bicep' = {
     tags: baseTags
     administratorPassword: postgresAdminPassword
     aadAdministrator: aadAdministrator
-    delegatedSubnetId: networkModule.outputs.postgresSubnetId
-    privateDnsZoneId: privateDnsModule.outputs.privateDnsZoneId
+    publicNetworkAccess: 'Enabled'
   }
 }
 
@@ -99,7 +96,44 @@ module acaModule './modules/aca.bicep' = {
     acaSubnetId: networkModule.outputs.acaSubnetId
     registryLoginServer: registryModule.outputs.loginServer
     userAssignedIdentityId: identityModule.outputs.identityId
-    environmentVariables: environmentVariables
+    environmentVariables: concat([
+      {
+        name: 'DB_AUTH_MODE'
+        value: 'aad'
+      }
+      {
+        name: 'DATABASE_HOST'
+        value: postgresModule.outputs.fullyQualifiedDomainName
+      }
+      {
+        name: 'DATABASE_PORT'
+        value: '5432'
+      }
+      {
+        name: 'DATABASE_NAME'
+        value: 'postgres'
+      }
+      {
+        name: 'DATABASE_USER'
+        value: identityModule.outputs.clientId
+      }
+      {
+        name: 'AZURE_CLIENT_ID'
+        value: identityModule.outputs.clientId
+      }
+      {
+        name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+        value: monitoringModule.outputs.appInsightsConnectionString
+      }
+      {
+        name: 'APP_ENV'
+        value: environmentName
+      }
+      {
+        name: 'LOG_LEVEL'
+        value: 'INFO'
+      }
+    ], environmentVariables)
   }
 }
 
@@ -113,4 +147,8 @@ module rbacModule './modules/rbac.bicep' = {
 output RESOURCE_GROUP_ID string = resourceGroup().id
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = registryModule.outputs.loginServer
 output CONTAINER_APP_FQDN string = acaModule.outputs.containerAppUrl
+output CONTAINER_APP_ID string = acaModule.outputs.containerAppId
 output POSTGRES_FQDN string = postgresModule.outputs.fullyQualifiedDomainName
+output MANAGED_IDENTITY_CLIENT_ID string = identityModule.outputs.clientId
+output MANAGED_IDENTITY_PRINCIPAL_ID string = identityModule.outputs.principalId
+output APPLICATIONINSIGHTS_CONNECTION_STRING string = monitoringModule.outputs.appInsightsConnectionString
