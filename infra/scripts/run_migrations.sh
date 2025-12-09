@@ -41,13 +41,8 @@ fi
 
 echo "Running Alembic migrations..."
 
-# Set environment variables for the app config
-export DB_AUTH_MODE="password"
-export DATABASE_HOST="$POSTGRES_FQDN"
-export DATABASE_PORT="5432"
-export DATABASE_NAME="$POSTGRES_DB"
-export DATABASE_USER="$MIGRATION_SP_APP_ID"
-export DATABASE_PASSWORD="$PGPASSWORD"
+# Build the connection URL directly with SSL
+export DATABASE_URL="postgresql+psycopg2://${MIGRATION_SP_APP_ID}:${PGPASSWORD}@${POSTGRES_FQDN}:5432/${POSTGRES_DB}?sslmode=require"
 
 alembic upgrade head
 
