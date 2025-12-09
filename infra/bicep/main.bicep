@@ -149,6 +149,7 @@ output AZURE_CONTAINER_REGISTRY_ENDPOINT string = registryModule.outputs.loginSe
 output CONTAINER_APP_FQDN string = acaModule.outputs.containerAppUrl
 output CONTAINER_APP_ID string = acaModule.outputs.containerAppId
 output POSTGRES_FQDN string = postgresModule.outputs.fullyQualifiedDomainName
+output POSTGRES_DB string = 'postgres'
 output MANAGED_IDENTITY_CLIENT_ID string = identityModule.outputs.clientId
 output MANAGED_IDENTITY_PRINCIPAL_ID string = identityModule.outputs.principalId
 output APPLICATIONINSIGHTS_CONNECTION_STRING string = monitoringModule.outputs.appInsightsConnectionString
