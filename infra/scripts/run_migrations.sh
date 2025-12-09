@@ -41,8 +41,12 @@ fi
 
 echo "Running Alembic migrations..."
 
+# For service principals, use the SP name instead of app ID as username
+# Azure PostgreSQL AAD auth requires the service principal display name
+SP_NAME="sp-${AZURE_ENV_NAME}-migration"
+
 # Build the connection URL directly with SSL
-export DATABASE_URL="postgresql+psycopg2://${MIGRATION_SP_APP_ID}:${PGPASSWORD}@${POSTGRES_FQDN}:5432/${POSTGRES_DB}?sslmode=require"
+export DATABASE_URL="postgresql+psycopg2://${SP_NAME}:${PGPASSWORD}@${POSTGRES_FQDN}:5432/${POSTGRES_DB}?sslmode=require"
 
 alembic upgrade head
 
