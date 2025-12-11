@@ -25,14 +25,6 @@ var baseTags = union(tags, {
   'azd-env-name': environmentName
 })
 
-// Use the user-assigned managed identity as the AAD administrator for PostgreSQL
-var aadAdministrator = {
-  principalName: identityModule.outputs.clientId
-  principalType: 'ServicePrincipal'
-  principalId: identityModule.outputs.principalId
-  tenantId: tenant().tenantId
-}
-
 module identityModule './modules/identity.bicep' = {
   params: {
     location: location
@@ -79,7 +71,6 @@ module postgresModule './modules/postgres.bicep' = {
     resourceToken: resourceToken
     tags: baseTags
     administratorPassword: postgresAdminPassword
-    aadAdministrator: aadAdministrator
     publicNetworkAccess: 'Enabled'
   }
 }
@@ -115,7 +106,7 @@ module acaModule './modules/aca.bicep' = {
       }
       {
         name: 'DATABASE_USER'
-        value: identityModule.outputs.clientId
+         value: identityModule.outputs.principalId
       }
       {
         name: 'AZURE_CLIENT_ID'

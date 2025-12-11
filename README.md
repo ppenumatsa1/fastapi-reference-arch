@@ -23,11 +23,25 @@ Provide a reference-grade TODO management API that demonstrates FastAPI best pra
 
 Create and activate a virtual environment, copy the sample env file, then start the Docker stack so PostgreSQL is available:
 
-````bash
+```bash
 python -m venv .venv
 source .venv/bin/activate
 cp .env.example .env
 make up
+```
+
+> Ensure Docker Desktop/daemon is running before invoking `make up`.
+
+Once the stack is running, stream FastAPI logs with `docker compose logs -f api`. If you prefer an
+all-in-one command that starts the stack and streams immediately, run `docker compose up` (stop
+with `Ctrl+C`, which also stops the containers).
+
+`make setup` installs project requirements, wires up `pre-commit`, runs all Alembic migrations, and seeds baseline TODO data:
+
+```bash
+make setup
+```
+
 Environment flags worth tweaking while developing:
 
 - `APP_DEBUG=true` keeps FastAPI in debug mode so tracebacks surface immediately.
@@ -38,7 +52,7 @@ Stop the containers when you are done:
 
 ```bash
 make down
-````
+```
 
 You can still run FastAPI directly if needed while the database container is up:
 
@@ -61,48 +75,100 @@ Run `make help` to see the latest list as new automation hooks are added.
 
 ## Project Structure
 
-See [`docs/design/projectstructure.md`](docs/design/projectstructure.md) for the full directory tree and naming conventions. Additional documentation (PRD, architecture notes, tech stack, user flows) lives under [`docs/design/`](docs/design/).
+See [docs/design/projectstructure.md](docs/design/projectstructure.md) for the full directory tree and naming conventions. Additional documentation (PRD, architecture notes, tech stack, user flows) lives under [docs/design/](docs/design/).
 
-## Azure Deployment
+## Database Authentication Modes
 
-Deploy to Azure Container Apps with PostgreSQL Flexible Server using Azure Developer CLI (azd). The application uses **Managed Identity** for passwordless database authentication and **Application Insights** for telemetry.
+- **Local (password mode)**: Docker Compose supplies `todo_user` / `todo_pass` for the bundled PostgreSQL container. Override via `.env` if needed.
+- **Azure (AAD mode)**: The app uses `DefaultAzureCredential` with the user-assigned managed identity (UAMI). Tokens are scoped to `https://ossrdbms-aad.database.windows.net/.default` and passed as the connection password—no database passwords in Azure. UAMI is not AAD admin; post-provision grants it `db_owner` so it can CRUD without admin rights.
 
-### Quick Start
+## Azure Deployment (azd)
+
+Prerequisites: Azure CLI (`az login`), Azure Developer CLI (`azd`), rights to create identities/RBAC assignments, and permission to create app registrations. Install `psql` so the hook can grant DB roles. If app registration is blocked, pre-seed `AAD_ADMIN_*` in the azd env.
+
+Identity model for Azure:
+
+- **Your user**: runs `azd up/azd deploy` and has app registration rights.
+- **Migration SP (created by hook)**: created/rotated during postprovision, set as PostgreSQL AAD admin, used by postdeploy to run migrations.
+- **UAMI (runtime)**: used by Container Apps to pull from ACR and connect to Postgres; postprovision grants it `db_owner` for app CRUD.
+
+Happy-path flow:
 
 ```bash
-# Provision infrastructure (one-time or when infra changes)
-azd env set MY_IP_ADDRESS <your.ip.addr>
+# Log in with your user that can create app registrations
+az login
+
+# Provision infra + deploy app
+azd up
+
+# Or provision only
 azd provision
 
-# Deploy app + run migrations via CI/CD (see .github/workflows/ci.yml)
+# Deploy latest code (after changes)
 azd deploy
 ```
 
-### Key Features
+What azd hooks do behind the scenes:
 
-- **Passwordless Authentication**: Uses User-Assigned Managed Identity (UAMI) for PostgreSQL access
-- **Public PG with Firewall**: Postgres is public but locked to ACA outbound IPs + your IP
-- **Application Insights**: OpenTelemetry instrumentation with automatic trace/span correlation
-- **Environment-aware**: Seamlessly switches between local Docker (password) and Azure (AAD)
-- **CI/CD Migrations**: Database schema changes run in GitHub Actions before deployment
+- Pre-provision hook generates azd env values and the break-glass Postgres password.
+- Bicep deploys Container Apps, PostgreSQL Flexible Server, ACR, identities, and RBAC (UAMI for runtime, ACR pull).
+- Post-provision hook creates/rotates the migration SP, sets it as PostgreSQL AAD admin, and grants the UAMI `db_owner` in Postgres.
+- Post-deploy hook runs Alembic migrations via the migration SP.
 
-### What Gets Created
+Network/firewall: PostgreSQL firewall is set to allow all IPv4 by default for development. Tighten this for production by editing the firewall rule in [infra/bicep/modules/postgres.bicep](infra/bicep/modules/postgres.bicep) or via the portal.
 
-- Container Registry for Docker images
-- Container Apps Environment with VNet integration
-- PostgreSQL Flexible Server with AAD authentication
-- User-Assigned Managed Identity for app authentication
-- Application Insights for telemetry and monitoring
-- Firewall rules limiting Postgres access to ACA + developer IPs
+## Migrations (AAD + Alembic)
 
-### Documentation
+How it works:
 
-- **[Deployment Guide](docs/DEPLOYMENT.md)**: Deployment walkthrough with MI setup
-- **[Infrastructure README](infra/bicep/README.md)**: Bicep modules and configuration details
+- The postprovision hook creates/rotates `sp-<env>-migration`, sets it as PostgreSQL AAD admin, and grants the UAMI `db_owner` for runtime CRUD.
+- `infra/scripts/run_migrations.sh` uses the migration SP creds from the azd env, fetches an `oss-rdbms` access token, sets `PGPASSWORD` to the token, and runs `alembic upgrade head` (invoked automatically by the postdeploy hook).
 
-### Prerequisites
+Run migrations locally or in CI:
 
-- Azure CLI: `az login` with subscription permissions
-- Azure Developer CLI: install from [aka.ms/azd](https://aka.ms/azd)
-- PostgreSQL client (`psql`) if you want local psql access during troubleshooting
-- Permissions to create RBAC assignments
+```bash
+export MIGRATION_SP_APP_ID=$(azd env get-value MIGRATION_SP_APP_ID)
+export MIGRATION_SP_PASSWORD=$(azd env get-value MIGRATION_SP_PASSWORD)
+export MIGRATION_SP_TENANT_ID=$(azd env get-value MIGRATION_SP_TENANT_ID)
+export POSTGRES_FQDN=$(azd env get-value POSTGRES_FQDN)
+export POSTGRES_DB=$(azd env get-value POSTGRES_DB)
+export AZURE_ENV_NAME=$(azd env get-value AZURE_ENV_NAME)
+
+make migrate        # or: bash ./infra/scripts/run_migrations.sh
+```
+
+Seeding: after migrations, run `make seed` to load baseline TODO data.
+
+Why this model: managed identities cannot emit `AAD_AUTH_TOKENTYPE_APP_USER` tokens outside Azure; a dedicated migration service principal (APP token) works from any runner while the app continues to use its managed identity at runtime.
+
+## Configuration Reference
+
+Local `.env` defaults (password mode):
+
+```env
+DATABASE_HOST=postgres
+DATABASE_PORT=5432
+DATABASE_USER=todo_user
+DATABASE_PASSWORD=todo_pass
+DATABASE_NAME=todo_db
+APP_ENV=development
+LOG_LEVEL=INFO
+```
+
+Azure environment (AAD mode) variables provided by azd/Bicep:
+
+```env
+DB_AUTH_MODE=aad
+DATABASE_HOST=<postgres-fqdn>
+DATABASE_PORT=5432
+DATABASE_NAME=postgres
+DATABASE_USER=<managed-identity-client-id>
+AZURE_CLIENT_ID=<managed-identity-client-id>
+APPLICATIONINSIGHTS_CONNECTION_STRING=<connection-string>
+APP_ENV=<environment-name>
+LOG_LEVEL=INFO
+```
+
+## Telemetry
+
+Application Insights is wired for the API; it activates when `APPLICATIONINSIGHTS_CONNECTION_STRING` is set. OpenTelemetry captures FastAPI, SQLAlchemy, and logging spans.

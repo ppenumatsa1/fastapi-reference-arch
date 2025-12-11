@@ -29,7 +29,17 @@ async def get_aad_token() -> str:
             "Install it with: pip install azure-identity"
         )
 
-    credential = DefaultAzureCredential()
+    settings = get_settings()
+
+    # For user-assigned managed identity, explicitly pass the client ID
+    # This is required in Azure Container Apps and other Azure hosting environments
+    if settings.azure_client_id:
+        credential = DefaultAzureCredential(
+            managed_identity_client_id=settings.azure_client_id
+        )
+    else:
+        credential = DefaultAzureCredential()
+
     token = await credential.get_token(POSTGRES_AAD_SCOPE)
     return token.token
 

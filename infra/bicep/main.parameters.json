@@ -23,8 +23,14 @@
     "postgresAdminPassword": {
       "value": "${POSTGRES_ADMIN_PASSWORD}"
     },
-    "myIpAddress": {
-      "value": "${MY_IP_ADDRESS}"
+    "aadAdministrator": {
+      "value": {
+        "principalName": "${AAD_ADMIN_PRINCIPAL_NAME}",
+        "principalType": "ServicePrincipal",
+        "principalId": "${AAD_ADMIN_PRINCIPAL_ID}",
+        "tenantId": "${AAD_ADMIN_TENANT_ID}",
+        "objectId": "${AAD_ADMIN_PRINCIPAL_ID}"
+      }
     },
     "environmentVariables": {
       "value": []

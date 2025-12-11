@@ -42,7 +42,7 @@ az account set --subscription <subscription-id>
 - `environmentName` and `location` are mandatory; azd injects them as `AZURE_ENV_NAME` and `AZURE_LOCATION`.
 - `postgresAdminPassword` is marked `@secure()`. Store it as an azd secret: `azd env set POSTGRES_ADMIN_PASSWORD '<strong-password>' --secret`.
 - `aadAdministrator` must describe the Entra ID principal (user, group, or service principal) that manages PostgreSQL. Provide `principalName`, `principalType`, `principalId` (object ID), and `tenantId`. This enables the user-assigned managed identity to gain database roles via RBAC.
-- `postgresFirewallRules` must list IPv4 ranges allowed to reach PostgreSQL's public endpoint. Initially provision without ACA IPs, then update after deployment (see steps below).
+- PostgreSQL firewall is preconfigured to allow all IPv4 addresses for development convenience. Lock this down in production via the portal or by adjusting the firewall rule in `modules/postgres.bicep`.
 - `serviceName` defaults to `api` and tags the Container App with `azd-service-name`.
 - Container Apps uses the required base image `mcr.microsoft.com/azuredocs/containerapps-helloworld:latest` initially. Swap to your FastAPI image during CI/CD.
 
@@ -117,49 +117,7 @@ All parameters are now managed through `azd env` variables or defaults:
 
 The `main.parameters.json` file uses variable substitution - no manual editing required
 
-### 5. Capture ACA Outbound IPs
-
-Once the Container App environment is deployed, retrieve its outbound IP addresses:
-
-```bash
-MANAGED_ENV_NAME=$(az containerapp env list -g <resource-group> --query "[0].name" -o tsv)
-az containerapp env show -n $MANAGED_ENV_NAME -g <resource-group> \
-  --query "properties.staticIp" -o tsv
-```
-
-Or get all outbound IPs if available in your API version:
-
-```bash
-az containerapp env show -n $MANAGED_ENV_NAME -g <resource-group> \
-  --query "properties.outboundIpAddresses[]" -o tsv
-```
-
-### 6. Update Firewall Rules
-
-Add the ACA IPs to `postgresFirewallRules` in `main.parameters.json`:
-
-```json
-"postgresFirewallRules": {
-  "value": [
-    {
-      "name": "aca-egress-1",
-      "startIpAddress": "20.51.x.x",
-      "endIpAddress": "20.51.x.x"
-    }
-  ]
-}
-```
-
-Re-run provisioning to apply the firewall updates:
-
-```bash
-azd provision \
-  --template-file infra/bicep/main.bicep \
-  --parameters @infra/bicep/main.parameters.json \
-  --parameters postgresAdminPassword=$POSTGRES_ADMIN_PASSWORD
-```
-
-### 7. Verify Role Assignments
+### 5. Verify Role Assignments
 
 Confirm the user-assigned managed identity has the required roles:
 
@@ -173,7 +131,7 @@ You should see:
 - `AcrPull` scoped to the Container Registry
 - `PostgreSQL Flexible Server Contributor` scoped to the PostgreSQL server
 
-### 8. Validate Database Access
+### 6. Validate Database Access
 
 Connect to PostgreSQL using the AAD admin credentials and verify the managed identity principal appears:
 
@@ -200,13 +158,7 @@ After successful provisioning, azd stores these outputs (view with `azd env get-
 
 Use these in subsequent deployment steps or CI/CD pipelines.
 
-## Next Steps (CI/CD with GitHub Actions)
+## Next Steps
 
-Once azd provisioning works locally, create a deployment pipeline:
-
-1. **Store secrets in GitHub**: Add `AZURE_CREDENTIALS`, `POSTGRES_ADMIN_PASSWORD`, and AAD details as repository secrets.
-2. **Build and push image**: Use `docker build` to create the FastAPI image, then push to ACR using the managed identity (via `az acr login` with service principal or federated credentials).
-3. **Update Container App**: Run `az containerapp revision create` to deploy the new image revision, referencing the ACR image. The user-assigned managed identity automatically pulls the image (no Docker credentials needed).
-4. **Run migrations**: Execute Alembic migrations from a job/init container using the same managed identity to authenticate to PostgreSQL via AAD.
-
-Because the user-assigned managed identity holds both `AcrPull` and `PostgreSQL Flexible Server Contributor`, runtime operations require zero secrets.
+- `azd up` now runs end-to-end (provision + deploy + migrations) using hooks; no GitHub Actions workflow is required.
+- For production, tighten the PostgreSQL firewall (replace the allow-all rule) and set per-environment secrets via `azd env set`.

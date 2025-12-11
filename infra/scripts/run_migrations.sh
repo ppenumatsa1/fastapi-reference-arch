@@ -1,6 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Remember the current default account so we can restore it after SP login
+ORIGINAL_SUBSCRIPTION_ID=""
+if az account show >/dev/null 2>&1; then
+  ORIGINAL_SUBSCRIPTION_ID=$(az account show --query id -o tsv || true)
+fi
+
+# Ensure we return to the original account when the script exits
+SP_LOGIN_PERFORMED=false
+cleanup() {
+  if [ "$SP_LOGIN_PERFORMED" = true ]; then
+    az logout --username "$MIGRATION_SP_APP_ID" >/dev/null 2>&1 || true
+    if [ -n "$ORIGINAL_SUBSCRIPTION_ID" ]; then
+      az account set --subscription "$ORIGINAL_SUBSCRIPTION_ID" >/dev/null 2>&1 || true
+    fi
+  fi
+}
+trap cleanup EXIT
+
 ROOT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 cd "$ROOT_DIR"
 
@@ -18,6 +36,7 @@ if [ -n "${MIGRATION_SP_APP_ID:-}" ] && [ -n "${MIGRATION_SP_PASSWORD:-}" ] && [
     --password "$MIGRATION_SP_PASSWORD" \
     --tenant "$MIGRATION_SP_TENANT_ID" \
     --allow-no-subscriptions > /dev/null 2>&1
+  SP_LOGIN_PERFORMED=true
   
   # Get AAD token for PostgreSQL using the service principal
   echo "Getting AAD token for PostgreSQL..."

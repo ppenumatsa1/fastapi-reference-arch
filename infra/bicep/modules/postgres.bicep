@@ -26,8 +26,6 @@ param administratorLogin string = 'aad_admin'
 @secure()
 @description('Admin password supplied via azd secret or pipeline variable. Not stored in source control.')
 param administratorPassword string
-@description('Azure AD administrator declaration for the server.')
-param aadAdministrator object
 @description('Enable or disable public network access (Enabled to use firewall allow lists).')
 @allowed([
   'Enabled'
@@ -72,15 +70,16 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' =
   }
 }
 
-@description('Azure AD administrator for PostgreSQL (required for managed identity auth).')
+// AAD admin is set by postprovision hook after server is fully ready
+
+@description('Firewall rule to allow all IPs for development. Restrict in production.')
 #disable-next-line BCP081
-resource postgresAadAdmin 'Microsoft.DBforPostgreSQL/flexibleServers/administrators@2024-08-01' = {
+resource postgresAllowAllFirewallRule 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2024-08-01' = {
   parent: postgresServer
-  name: aadAdministrator.principalId
+  name: 'AllowAll'
   properties: {
-    principalName: aadAdministrator.principalName
-    principalType: aadAdministrator.principalType
-    tenantId: aadAdministrator.tenantId
+    startIpAddress: '0.0.0.0'
+    endIpAddress: '255.255.255.255'
   }
 }
 

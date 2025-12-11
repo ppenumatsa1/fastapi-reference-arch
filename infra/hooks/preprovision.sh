@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Azure Developer CLI Pre-Provision Hook
-# Automates Service Principal creation and environment setup for PostgreSQL AAD Admin
+# Sets up environment variables for deployment
 # This script runs automatically before 'azd provision'
 
 set -e
@@ -26,9 +26,13 @@ if [ -z "$AZURE_LOCATION" ]; then
   AZURE_LOCATION="$DEFAULT_LOCATION"
 fi
 
+# Set resource group name convention
 RESOURCE_GROUP="rg-$ENV_NAME"
 echo "Resource Group: $RESOURCE_GROUP"
 azd env set AZURE_RESOURCE_GROUP "$RESOURCE_GROUP"
+
+echo ""
+echo "Note: Migration service principal will be created by postprovision hook"
 
 # Generate secure PostgreSQL admin password if not already set
 if [ -z "$POSTGRES_ADMIN_PASSWORD" ]; then
