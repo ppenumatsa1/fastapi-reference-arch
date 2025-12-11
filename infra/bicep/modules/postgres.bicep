@@ -64,13 +64,11 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' =
       mode: 'Disabled'
     }
     authConfig: {
-      activeDirectoryAuth: 'Enabled'
+      activeDirectoryAuth: 'Disabled'
       passwordAuth: 'Enabled'
     }
   }
 }
-
-// AAD admin is set by postprovision hook after server is fully ready
 
 @description('Firewall rule to allow all IPs for development. Restrict in production.')
 #disable-next-line BCP081

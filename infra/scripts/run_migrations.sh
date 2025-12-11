@@ -1,24 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Remember the current default account so we can restore it after SP login
-ORIGINAL_SUBSCRIPTION_ID=""
-if az account show >/dev/null 2>&1; then
-  ORIGINAL_SUBSCRIPTION_ID=$(az account show --query id -o tsv || true)
-fi
-
-# Ensure we return to the original account when the script exits
-SP_LOGIN_PERFORMED=false
-cleanup() {
-  if [ "$SP_LOGIN_PERFORMED" = true ]; then
-    az logout --username "$MIGRATION_SP_APP_ID" >/dev/null 2>&1 || true
-    if [ -n "$ORIGINAL_SUBSCRIPTION_ID" ]; then
-      az account set --subscription "$ORIGINAL_SUBSCRIPTION_ID" >/dev/null 2>&1 || true
-    fi
-  fi
-}
-trap cleanup EXIT
-
 ROOT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 cd "$ROOT_DIR"
 
@@ -26,47 +8,74 @@ export PYTHONPATH="$ROOT_DIR${PYTHONPATH:+:$PYTHONPATH}"
 
 echo "Running database migrations..."
 
-# Check if we have migration service principal credentials
-if [ -n "${MIGRATION_SP_APP_ID:-}" ] && [ -n "${MIGRATION_SP_PASSWORD:-}" ] && [ -n "${MIGRATION_SP_TENANT_ID:-}" ]; then
-  echo "Authenticating with migration service principal..."
-  
-  # Login with service principal
-  az login --service-principal \
-    --username "$MIGRATION_SP_APP_ID" \
-    --password "$MIGRATION_SP_PASSWORD" \
-    --tenant "$MIGRATION_SP_TENANT_ID" \
-    --allow-no-subscriptions > /dev/null 2>&1
-  SP_LOGIN_PERFORMED=true
-  
-  # Get AAD token for PostgreSQL using the service principal
-  echo "Getting AAD token for PostgreSQL..."
-  AAD_TOKEN=$(az account get-access-token \
-    --resource-type oss-rdbms \
-    --query accessToken \
-    --output tsv)
-  
-  if [ -z "$AAD_TOKEN" ]; then
-    echo "Error: Failed to get AAD token"
-    exit 1
+DATABASE_USER="${DATABASE_USER:-${TODO_DB_USER:-todo_user}}"
+DATABASE_PASSWORD="${DATABASE_PASSWORD:-${TODO_DB_PASSWORD:-}}"
+DATABASE_HOST="${DATABASE_HOST:-${POSTGRES_FQDN:-localhost}}"
+DATABASE_PORT="${DATABASE_PORT:-5432}"
+DATABASE_NAME="${DATABASE_NAME:-${POSTGRES_DB:-todo_db}}"
+
+# Attempt to pull password from Key Vault if not provided
+if [ -z "$DATABASE_PASSWORD" ]; then
+  VAULT_NAME="${AZURE_KEY_VAULT_NAME:-${KEYVAULT_NAME:-}}"
+  if [ -n "$VAULT_NAME" ]; then
+    echo "Fetching database password from Key Vault $VAULT_NAME..."
+    DATABASE_PASSWORD=$(az keyvault secret show \
+      --vault-name "$VAULT_NAME" \
+      --name "todo-db-password" \
+      --query value \
+      -o tsv 2>/dev/null || true)
   fi
-  
-  # Set password to AAD token for psycopg2
-  export PGPASSWORD="$AAD_TOKEN"
-  
-  echo "✓ Authentication successful"
-else
-  echo "Using default authentication (password or managed identity)"
 fi
 
-echo "Running Alembic migrations..."
+# Local dev fallback: use compose defaults when pointing at the bundled postgres service
+if [ -z "$DATABASE_PASSWORD" ] && { [ "$DATABASE_HOST" = "postgres" ] || [ "$DATABASE_HOST" = "localhost" ]; }; then
+  DATABASE_PASSWORD="todo_pass"
+fi
 
-# For service principals, use the SP name instead of app ID as username
-# Azure PostgreSQL AAD auth requires the service principal display name
-SP_NAME="sp-${AZURE_ENV_NAME}-migration"
+if [ -z "$DATABASE_PASSWORD" ]; then
+  echo "Error: DATABASE_PASSWORD (or TODO_DB_PASSWORD) is required."
+  exit 1
+fi
 
-# Build the connection URL directly with SSL
-export DATABASE_URL="postgresql+psycopg2://${SP_NAME}:${PGPASSWORD}@${POSTGRES_FQDN}:5432/${POSTGRES_DB}?sslmode=require"
+export PGPASSWORD="$DATABASE_PASSWORD"
+
+SSL_QUERY="sslmode=require"
+ASYNC_SSL="ssl=require"
+if [ "$DATABASE_HOST" = "postgres" ] || [ "$DATABASE_HOST" = "localhost" ]; then
+  SSL_QUERY="sslmode=disable"
+  ASYNC_SSL="ssl=disable"
+fi
+
+if [ -z "${DATABASE_URL:-}" ]; then
+  DATABASE_URL="postgresql+psycopg2://${DATABASE_USER}:${DATABASE_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_NAME}?${SSL_QUERY}"
+fi
+
+export DATABASE_URL
+export ASYNC_DATABASE_URL="${ASYNC_DATABASE_URL:-postgresql+asyncpg://${DATABASE_USER}:${DATABASE_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_NAME}?${ASYNC_SSL}}"
+export DATABASE_USER DATABASE_PASSWORD DATABASE_HOST DATABASE_PORT DATABASE_NAME
+
+echo "Using host ${DATABASE_HOST} on port ${DATABASE_PORT} as ${DATABASE_USER} against ${DATABASE_NAME}"
+
+# Wait for database to be reachable (helps local docker-compose workflows)
+if command -v pg_isready >/dev/null 2>&1; then
+  for _ in {1..30}; do
+    if pg_isready -h "$DATABASE_HOST" -p "$DATABASE_PORT" -U "$DATABASE_USER" -d "$DATABASE_NAME" >/dev/null 2>&1; then
+      break
+    fi
+    sleep 1
+  done
+else
+  for _ in {1..30}; do
+    if PGPASSWORD="$DATABASE_PASSWORD" psql "host=$DATABASE_HOST port=$DATABASE_PORT user=$DATABASE_USER dbname=$DATABASE_NAME sslmode=${SSL_QUERY#sslmode=}" -c "select 1" >/dev/null 2>&1; then
+      break
+    fi
+    sleep 1
+  done
+fi
 
 alembic upgrade head
+
+echo "Seeding sample data..."
+python scripts/seed_data.py
 
 echo "✓ Migrations completed successfully"

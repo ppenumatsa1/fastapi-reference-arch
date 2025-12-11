@@ -1,10 +1,10 @@
 # fastapi-reference-arch
 
-Production-ready FastAPI reference implementing a TODO CRUD service backed by PostgreSQL and SQLAlchemy. The template (root folder name `fastapi-reference-arch`) showcases layered architecture (routes → services → repositories → core) plus automation hooks for future Azure Bicep deployments.
+Production-ready FastAPI reference implementing a TODO CRUD service backed by PostgreSQL and SQLAlchemy. The template (root folder name `fastapi-reference-arch`) showcases layered architecture (routes → services → repositories → core) plus automation hooks for Azure Bicep deployments.
 
 ## Goal
 
-Provide a reference-grade TODO management API that demonstrates FastAPI best practices, CRUD workflows, and operational readiness for Azure deployments—so new greenfield projects can start from a minimal yet well-structured baseline and layer additional features on top.
+Provide a reference-grade TODO management API that demonstrates FastAPI best practices, CRUD workflows, and operational readiness for Azure deployments—so new greenfield projects can start from a minimal yet well-structured baseline and layer additional features on top. This README is meant to be enough for a new developer to clone, run locally with Docker Compose, and deploy to Azure with `azd`.
 
 ## Features
 
@@ -13,52 +13,36 @@ Provide a reference-grade TODO management API that demonstrates FastAPI best pra
 - Async SQLAlchemy ORM stack (`asyncpg`) with Alembic migrations to manage schema changes safely.
 - Pydantic-powered request/response models that validate inputs and outputs.
 - Centralized exception handling so API errors map cleanly to HTTP responses.
-- Built-in observability via structured logs today and ready hooks for metrics/traces.
+- Built-in observability via structured logs plus Application Insights/OpenTelemetry wiring.
 - Configurable via `.env`, adhering to `pydantic-settings` and Twelve-Factor conventions.
 - Docker Compose stack (FastAPI + PostgreSQL) for local development.
 - Pytest-based async test suites exercising the full stack through HTTPX clients.
-- GitHub Actions workflow (to be added) covering lint, format check, tests, and image build.
 
-## Getting Started
+## Local Development (Docker Compose)
 
-Create and activate a virtual environment, copy the sample env file, then start the Docker stack so PostgreSQL is available:
+Prerequisites: Docker, Python 3.12+, `make`.
+
+1. Clone and create env:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 cp .env.example .env
-make up
 ```
 
-> Ensure Docker Desktop/daemon is running before invoking `make up`.
-
-Once the stack is running, stream FastAPI logs with `docker compose logs -f api`. If you prefer an
-all-in-one command that starts the stack and streams immediately, run `docker compose up` (stop
-with `Ctrl+C`, which also stops the containers).
-
-`make setup` installs project requirements, wires up `pre-commit`, runs all Alembic migrations, and seeds baseline TODO data:
+2. Bring up everything, install deps, run migrations, seed data (idempotent):
 
 ```bash
 make setup
 ```
 
+This starts the Docker Compose stack, runs Alembic migrations, and seeds sample TODOs automatically. Logs: `docker compose logs -f api`. Stop: `make down`. Optional direct app run while DB is up: `uvicorn app.main:app --reload`.
+
 Environment flags worth tweaking while developing:
 
-- `APP_DEBUG=true` keeps FastAPI in debug mode so tracebacks surface immediately.
-- `LOG_LEVEL=DEBUG` turns on verbose JSON logs (router → service → repository) without code changes.
-- `DATABASE_URL` / `ASYNC_DATABASE_URL` (optional) let you override the assembled DSNs if you need a fully custom connection string for sync migrations or the async app runtime.
-
-Stop the containers when you are done:
-
-```bash
-make down
-```
-
-You can still run FastAPI directly if needed while the database container is up:
-
-```bash
-uvicorn app.main:app --reload
-```
+- `APP_DEBUG=true` keeps FastAPI in debug mode.
+- `LOG_LEVEL=DEBUG` turns on verbose JSON logs.
+- `DATABASE_URL` / `ASYNC_DATABASE_URL` (optional) override assembled DSNs if you need a custom connection string.
 
 ## Common Make Targets
 
@@ -80,94 +64,37 @@ See [docs/design/projectstructure.md](docs/design/projectstructure.md) for the f
 ## Database Authentication Modes
 
 - **Local (password mode)**: Docker Compose supplies `todo_user` / `todo_pass` for the bundled PostgreSQL container. Override via `.env` if needed.
-- **Azure (AAD mode)**: The app uses `DefaultAzureCredential` with the user-assigned managed identity (UAMI). Tokens are scoped to `https://ossrdbms-aad.database.windows.net/.default` and passed as the connection password—no database passwords in Azure. UAMI is not AAD admin; post-provision grants it `db_owner` so it can CRUD without admin rights.
+- **Azure (password mode)**: The app uses a dedicated `todo_user` whose password lives in Key Vault as `todo-db-password`; Container Apps injects it via secret reference. The azd hooks create/rotate the user and grant the required privileges.
 
 ## Azure Deployment (azd)
 
-Prerequisites: Azure CLI (`az login`), Azure Developer CLI (`azd`), rights to create identities/RBAC assignments, and permission to create app registrations. Install `psql` so the hook can grant DB roles. If app registration is blocked, pre-seed `AAD_ADMIN_*` in the azd env.
+Prerequisites: Azure CLI (`az login`), Azure Developer CLI (`azd`), permission to create resources/RBAC, and `psql` locally for the grant step.
 
-Identity model for Azure:
-
-- **Your user**: runs `azd up/azd deploy` and has app registration rights.
-- **Migration SP (created by hook)**: created/rotated during postprovision, set as PostgreSQL AAD admin, used by postdeploy to run migrations.
-- **UAMI (runtime)**: used by Container Apps to pull from ACR and connect to Postgres; postprovision grants it `db_owner` for app CRUD.
-
-Happy-path flow:
+Happy path:
 
 ```bash
-# Log in with your user that can create app registrations
 az login
-
-# Provision infra + deploy app
-azd up
-
-# Or provision only
-azd provision
-
-# Deploy latest code (after changes)
+azd env new <env-name>
+azd up       # provision + deploy + run migrations + seed
+# subsequent deploys
 azd deploy
 ```
 
-What azd hooks do behind the scenes:
+What azd hooks do (summary):
 
-- Pre-provision hook generates azd env values and the break-glass Postgres password.
-- Bicep deploys Container Apps, PostgreSQL Flexible Server, ACR, identities, and RBAC (UAMI for runtime, ACR pull).
-- Post-provision hook creates/rotates the migration SP, sets it as PostgreSQL AAD admin, and grants the UAMI `db_owner` in Postgres.
-- Post-deploy hook runs Alembic migrations via the migration SP.
+- Pre-provision (`infra/hooks/preprovision.sh`): sets location/resource group defaults; generates Postgres admin and `todo_user` passwords into the azd env.
+- Bicep (`infra/bicep`): provisions Container Apps, PostgreSQL Flexible Server, ACR, identities, and wiring.
+- Post-provision (`infra/hooks/postprovision.sh`): creates `todo_user`, grants CONNECT/USAGE/CREATE and DML/sequence rights on `public`.
+- Post-deploy (`infra/scripts/run_migrations.sh`): builds DSNs from env/Key Vault, runs `alembic upgrade head`, then seeds sample todos (idempotent).
 
-Network/firewall: PostgreSQL firewall is set to allow all IPv4 by default for development. Tighten this for production by editing the firewall rule in [infra/bicep/modules/postgres.bicep](infra/bicep/modules/postgres.bicep) or via the portal.
+Network/firewall: PostgreSQL firewall allows all IPv4 by default for development. Lock down in production via [infra/bicep/modules/postgres.bicep](infra/bicep/modules/postgres.bicep). For deeper details, see [infra/bicep/README.md](infra/bicep/README.md).
 
-## Migrations (AAD + Alembic)
+## Migrations + Config
 
-How it works:
-
-- The postprovision hook creates/rotates `sp-<env>-migration`, sets it as PostgreSQL AAD admin, and grants the UAMI `db_owner` for runtime CRUD.
-- `infra/scripts/run_migrations.sh` uses the migration SP creds from the azd env, fetches an `oss-rdbms` access token, sets `PGPASSWORD` to the token, and runs `alembic upgrade head` (invoked automatically by the postdeploy hook).
-
-Run migrations locally or in CI:
-
-```bash
-export MIGRATION_SP_APP_ID=$(azd env get-value MIGRATION_SP_APP_ID)
-export MIGRATION_SP_PASSWORD=$(azd env get-value MIGRATION_SP_PASSWORD)
-export MIGRATION_SP_TENANT_ID=$(azd env get-value MIGRATION_SP_TENANT_ID)
-export POSTGRES_FQDN=$(azd env get-value POSTGRES_FQDN)
-export POSTGRES_DB=$(azd env get-value POSTGRES_DB)
-export AZURE_ENV_NAME=$(azd env get-value AZURE_ENV_NAME)
-
-make migrate        # or: bash ./infra/scripts/run_migrations.sh
-```
-
-Seeding: after migrations, run `make seed` to load baseline TODO data.
-
-Why this model: managed identities cannot emit `AAD_AUTH_TOKENTYPE_APP_USER` tokens outside Azure; a dedicated migration service principal (APP token) works from any runner while the app continues to use its managed identity at runtime.
-
-## Configuration Reference
-
-Local `.env` defaults (password mode):
-
-```env
-DATABASE_HOST=postgres
-DATABASE_PORT=5432
-DATABASE_USER=todo_user
-DATABASE_PASSWORD=todo_pass
-DATABASE_NAME=todo_db
-APP_ENV=development
-LOG_LEVEL=INFO
-```
-
-Azure environment (AAD mode) variables provided by azd/Bicep:
-
-```env
-DB_AUTH_MODE=aad
-DATABASE_HOST=<postgres-fqdn>
-DATABASE_PORT=5432
-DATABASE_NAME=postgres
-DATABASE_USER=<managed-identity-client-id>
-AZURE_CLIENT_ID=<managed-identity-client-id>
-APPLICATIONINSIGHTS_CONNECTION_STRING=<connection-string>
-APP_ENV=<environment-name>
-LOG_LEVEL=INFO
-```
+- Azure: postdeploy hook runs migrations and seeds on every `azd deploy`.
+- Local/CI: `bash ./infra/scripts/run_migrations.sh` (honors `DATABASE_*` / `TODO_DB_*`; can pull password from Key Vault when `AZURE_KEY_VAULT_NAME`/`KEYVAULT_NAME` are set).
+- Local defaults: host `postgres`, port `5432`, user `todo_user`, password `todo_pass`, db `todo_db`, `APP_ENV=development`, `LOG_LEVEL=INFO`.
+- Azure env (password mode): see the app variables listed in [infra/bicep/README.md](infra/bicep/README.md#app-configuration-azure-password-mode).
 
 ## Telemetry
 

@@ -44,7 +44,7 @@ az account set --subscription <subscription-id>
 - `aadAdministrator` must describe the Entra ID principal (user, group, or service principal) that manages PostgreSQL. Provide `principalName`, `principalType`, `principalId` (object ID), and `tenantId`. This enables the user-assigned managed identity to gain database roles via RBAC.
 - PostgreSQL firewall is preconfigured to allow all IPv4 addresses for development convenience. Lock this down in production via the portal or by adjusting the firewall rule in `modules/postgres.bicep`.
 - `serviceName` defaults to `api` and tags the Container App with `azd-service-name`.
-- Container Apps uses the required base image `mcr.microsoft.com/azuredocs/containerapps-helloworld:latest` initially. Swap to your FastAPI image during CI/CD.
+- Container Apps image is parameterized via `imageRepository`, `imageTag`, and optional full `image` (empty by default; repo/tag defaults to `fastapi-reference-arch/api-dev:latest`). Override in CI/CD with your built image tag (e.g., git SHA) by setting `image` or `imageTag`/`imageRepository`.
 
 ## Streamlined Provisioning with azd
 
@@ -155,6 +155,23 @@ After successful provisioning, azd stores these outputs (view with `azd env get-
 - `AZURE_CONTAINER_REGISTRY_ENDPOINT`: ACR login server for image pushes
 - `CONTAINER_APP_FQDN`: Public FQDN of the Container App
 - `POSTGRES_FQDN`: Fully qualified domain name of the PostgreSQL server
+
+## App Configuration (Azure password mode)
+
+Container Apps injects these application settings from azd/Key Vault:
+
+```env
+DB_AUTH_MODE=password
+DATABASE_HOST=<postgres-fqdn>
+DATABASE_PORT=5432
+DATABASE_NAME=postgres
+DATABASE_USER=todo_user
+DATABASE_PASSWORD=<in-Key-Vault-or-azd-env>
+AZURE_CLIENT_ID=<managed-identity-client-id>
+APPLICATIONINSIGHTS_CONNECTION_STRING=<connection-string>
+APP_ENV=<environment-name>
+LOG_LEVEL=INFO
+```
 
 Use these in subsequent deployment steps or CI/CD pipelines.
 

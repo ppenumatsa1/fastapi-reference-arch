@@ -8,7 +8,7 @@ PYTHON ?= python3
 help: ## Display available targets
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*## "}; {printf "  %-12s %s\n", $$1, $$2}'
 
-setup: deps precommit migrate seed ## Bootstrap the local environment
+setup: deps precommit up migrate seed ## Bootstrap the local environment
 
 deps: ## Install Python dependencies into the active environment
 	$(PYTHON) -m pip install -r requirements.txt

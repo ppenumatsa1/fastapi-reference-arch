@@ -17,6 +17,17 @@ param postgresSubnetCidr string = '10.24.1.0/28'
 @description('Secure administrator password for PostgreSQL flexible server.')
 @secure()
 param postgresAdminPassword string
+@description('Secure password for the application database user (todo_user).')
+@secure()
+param todoDbPassword string
+@description('Application database user name.')
+param todoDbUser string = 'todo_user'
+@description('Container image repository path inside ACR (e.g., fastapi-reference-arch/api-dev).')
+param imageRepository string = 'fastapi-reference-arch/api-dev'
+@description('Container image tag to deploy (e.g., git SHA or dev).')
+param imageTag string = 'latest'
+@description('Optional full image reference (registry/repo:tag). When set, overrides repository/tag concatenation. Defaults to public sample image to allow first provision before custom image exists.')
+param image string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 @description('Optional array of environment variables applied to the container app. Each entry should include name/value or name/secretRef.')
 param environmentVariables array = []
 
@@ -24,6 +35,7 @@ var resourceToken = uniqueString(subscription().id, resourceGroup().id, location
 var baseTags = union(tags, {
   'azd-env-name': environmentName
 })
+var todoDbPasswordSecretUrl = '${keyVaultModule.outputs.keyVaultUri}secrets/todo-db-password'
 
 module identityModule './modules/identity.bicep' = {
   params: {
@@ -75,6 +87,17 @@ module postgresModule './modules/postgres.bicep' = {
   }
 }
 
+module keyVaultModule './modules/keyvault.bicep' = {
+  params: {
+    location: location
+    environmentName: environmentName
+    resourceToken: resourceToken
+    tags: baseTags
+    userAssignedIdentityPrincipalId: identityModule.outputs.principalId
+    todoDbPassword: todoDbPassword
+  }
+}
+
 module acaModule './modules/aca.bicep' = {
   params: {
     location: location
@@ -87,10 +110,20 @@ module acaModule './modules/aca.bicep' = {
     acaSubnetId: networkModule.outputs.acaSubnetId
     registryLoginServer: registryModule.outputs.loginServer
     userAssignedIdentityId: identityModule.outputs.identityId
+    secrets: [
+      {
+        name: 'db-password'
+        keyVaultUrl: todoDbPasswordSecretUrl
+        identity: identityModule.outputs.identityId
+      }
+    ]
+    imageRepository: imageRepository
+    imageTag: imageTag
+    image: image
     environmentVariables: concat([
       {
         name: 'DB_AUTH_MODE'
-        value: 'aad'
+        value: 'password'
       }
       {
         name: 'DATABASE_HOST'
@@ -106,11 +139,11 @@ module acaModule './modules/aca.bicep' = {
       }
       {
         name: 'DATABASE_USER'
-         value: identityModule.outputs.principalId
+        value: todoDbUser
       }
       {
-        name: 'AZURE_CLIENT_ID'
-        value: identityModule.outputs.clientId
+        name: 'DATABASE_PASSWORD'
+        secretRef: 'db-password'
       }
       {
         name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
@@ -143,4 +176,6 @@ output POSTGRES_FQDN string = postgresModule.outputs.fullyQualifiedDomainName
 output POSTGRES_DB string = 'postgres'
 output MANAGED_IDENTITY_CLIENT_ID string = identityModule.outputs.clientId
 output MANAGED_IDENTITY_PRINCIPAL_ID string = identityModule.outputs.principalId
+output KEYVAULT_NAME string = keyVaultModule.outputs.keyVaultName
+output KEYVAULT_URI string = keyVaultModule.outputs.keyVaultUri
 output APPLICATIONINSIGHTS_CONNECTION_STRING string = monitoringModule.outputs.appInsightsConnectionString

@@ -31,8 +31,12 @@ RESOURCE_GROUP="rg-$ENV_NAME"
 echo "Resource Group: $RESOURCE_GROUP"
 azd env set AZURE_RESOURCE_GROUP "$RESOURCE_GROUP"
 
+# Set admin user (aligns with bicep default)
+POSTGRES_ADMIN_USER="${POSTGRES_ADMIN_USER:-aad_admin}"
+azd env set POSTGRES_ADMIN_USER "$POSTGRES_ADMIN_USER"
+
 echo ""
-echo "Note: Migration service principal will be created by postprovision hook"
+echo "Note: Post-provision will configure the dedicated app DB user with these credentials"
 
 # Generate secure PostgreSQL admin password if not already set
 if [ -z "$POSTGRES_ADMIN_PASSWORD" ]; then
@@ -44,6 +48,21 @@ if [ -z "$POSTGRES_ADMIN_PASSWORD" ]; then
 else
   echo ""
   echo "Using existing PostgreSQL admin password from environment."
+fi
+
+# Generate dedicated app DB user credentials if missing
+TODO_DB_USER="${TODO_DB_USER:-todo_user}"
+azd env set TODO_DB_USER "$TODO_DB_USER"
+
+if [ -z "$TODO_DB_PASSWORD" ]; then
+  echo ""
+  echo "Generating secure password for $TODO_DB_USER..."
+  TODO_DB_PASSWORD_GENERATED=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
+  azd env set TODO_DB_PASSWORD "$TODO_DB_PASSWORD_GENERATED" --no-prompt
+  echo "Todo DB user password generated and stored securely."
+else
+  echo ""
+  echo "Using existing password for $TODO_DB_USER from environment."
 fi
 
 echo ""

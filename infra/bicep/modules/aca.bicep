@@ -13,6 +13,7 @@ param maxReplicas int = 3
 param containerCpu int = 1
 param containerMemory string = '2Gi'
 param targetPort int = 8000
+param secrets array = []
 param corsConfig object = {
   allowedOrigins: [
     '*'
@@ -35,6 +36,12 @@ param corsConfig object = {
   allowCredentials: false
 }
 param environmentVariables array = []
+@description('Container image repository path inside ACR (e.g., fastapi-reference-arch/api-dev).')
+param imageRepository string = 'fastapi-reference-arch/api-dev'
+@description('Container image tag to deploy (e.g., git SHA or dev).')
+param imageTag string = 'latest'
+@description('Optional full image reference (registry/repo:tag). When set, overrides repository/tag concatenation. Defaults to public sample image to allow first provision before custom image exists.')
+param image string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
 var managedEnvironmentName = 'azace${resourceToken}'
 var containerAppName = 'azaca${resourceToken}'
@@ -82,6 +89,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-02-02-preview' = {
   properties: {
     managedEnvironmentId: managedEnvironment.id
     configuration: {
+      secrets: secrets
       ingress: {
         external: true
         targetPort: targetPort
@@ -99,7 +107,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-02-02-preview' = {
       containers: [
         {
           name: serviceName
-          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+          image: image != '' ? image : '${registryLoginServer}/${imageRepository}:${imageTag}'
           resources: {
             cpu: containerCpu
             memory: containerMemory

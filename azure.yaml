@@ -5,6 +5,10 @@ metadata:
   template: fastapi-reference-arch@0.0.1-beta
 
 hooks:
+  postpackage:
+    shell: sh
+    run: ./infra/hooks/postpackage.sh
+    continueOnError: false
   preprovision:
     shell: sh
     run: ./infra/hooks/preprovision.sh
