@@ -57,15 +57,6 @@ Environment flags worth tweaking while developing:
 
 Run `make help` to see the latest list as new automation hooks are added.
 
-## Project Structure
-
-See [docs/design/projectstructure.md](docs/design/projectstructure.md) for the full directory tree and naming conventions. Additional documentation (PRD, architecture notes, tech stack, user flows) lives under [docs/design/](docs/design/).
-
-## Database Authentication Modes
-
-- **Local (password mode)**: Docker Compose supplies `todo_user` / `todo_pass` for the bundled PostgreSQL container. Override via `.env` if needed.
-- **Azure (password mode)**: The app uses a dedicated `todo_user` whose password lives in Key Vault as `todo-db-password`; Container Apps injects it via secret reference. The azd hooks create/rotate the user and grant the required privileges.
-
 ## Azure Deployment (azd)
 
 Prerequisites: Azure CLI (`az login`), Azure Developer CLI (`azd`), permission to create resources/RBAC, and `psql` locally for the grant step.
@@ -82,12 +73,22 @@ azd deploy
 
 What azd hooks do (summary):
 
-- Pre-provision (`infra/hooks/preprovision.sh`): sets location/resource group defaults; generates Postgres admin and `todo_user` passwords into the azd env.
-- Bicep (`infra/bicep`): provisions Container Apps, PostgreSQL Flexible Server, ACR, identities, and wiring.
-- Post-provision (`infra/hooks/postprovision.sh`): creates `todo_user`, grants CONNECT/USAGE/CREATE and DML/sequence rights on `public`.
-- Post-deploy (`infra/scripts/run_migrations.sh`): builds DSNs from env/Key Vault, runs `alembic upgrade head`, then seeds sample todos (idempotent).
+- Pre-provision ([infra/hooks/preprovision.sh](infra/hooks/preprovision.sh)): sets location/resource group defaults; generates Postgres admin and `todo_user` passwords into the azd env.
+- Bicep ([infra/bicep](infra/bicep)): provisions Container Apps, PostgreSQL Flexible Server, ACR, identities, and wiring.
+- Post-provision ([infra/hooks/postprovision.sh](infra/hooks/postprovision.sh)): creates `todo_user`, grants CONNECT/USAGE/CREATE and DML/sequence rights on `public`.
+- Post-package ([infra/hooks/postpackage.sh](infra/hooks/postpackage.sh)): re-tags the packaged image as `:latest`, pushes it, and sets the `IMAGE` env value so `azd deploy` picks it up.
+- Post-deploy ([infra/scripts/run_migrations.sh](infra/scripts/run_migrations.sh)): builds DSNs from env/Key Vault, runs `alembic upgrade head`, then seeds sample todos (idempotent).
 
 Network/firewall: PostgreSQL firewall allows all IPv4 by default for development. Lock down in production via [infra/bicep/modules/postgres.bicep](infra/bicep/modules/postgres.bicep). For deeper details, see [infra/bicep/README.md](infra/bicep/README.md).
+
+## Project Structure
+
+See [docs/design/projectstructure.md](docs/design/projectstructure.md) for the full directory tree and naming conventions. Additional documentation (PRD, architecture notes, tech stack, user flows) lives under [docs/design/](docs/design/).
+
+## Database Authentication Modes
+
+- **Local (password mode)**: Docker Compose supplies `todo_user` / `todo_pass` for the bundled PostgreSQL container. Override via `.env` if needed.
+- **Azure (password mode)**: The app uses a dedicated `todo_user` whose password lives in Key Vault as `todo-db-password`; Container Apps injects it via secret reference. The azd hooks create/rotate the user and grant the required privileges.
 
 ## Migrations + Config
 

@@ -41,14 +41,13 @@ az account set --subscription <subscription-id>
 
 - `environmentName` and `location` are mandatory; azd injects them as `AZURE_ENV_NAME` and `AZURE_LOCATION`.
 - `postgresAdminPassword` is marked `@secure()`. Store it as an azd secret: `azd env set POSTGRES_ADMIN_PASSWORD '<strong-password>' --secret`.
-- `aadAdministrator` must describe the Entra ID principal (user, group, or service principal) that manages PostgreSQL. Provide `principalName`, `principalType`, `principalId` (object ID), and `tenantId`. This enables the user-assigned managed identity to gain database roles via RBAC.
 - PostgreSQL firewall is preconfigured to allow all IPv4 addresses for development convenience. Lock this down in production via the portal or by adjusting the firewall rule in `modules/postgres.bicep`.
 - `serviceName` defaults to `api` and tags the Container App with `azd-service-name`.
 - Container Apps image is parameterized via `imageRepository`, `imageTag`, and optional full `image` (empty by default; repo/tag defaults to `fastapi-reference-arch/api-dev:latest`). Override in CI/CD with your built image tag (e.g., git SHA) by setting `image` or `imageTag`/`imageRepository`.
 
 ## Streamlined Provisioning with azd
 
-The infrastructure setup uses **azd hooks** to automate AAD Service Principal creation and environment configuration. Everything runs with a single command.
+The infrastructure setup uses **azd hooks** to generate secrets and wire environment values automatically. Everything runs with a single command.
 
 ### Quick Start
 
@@ -64,23 +63,19 @@ azd provision
 
 That's it! The preprovision hook automatically:
 
-- Creates/reuses a Service Principal for PostgreSQL AAD admin
-- Generates a secure PostgreSQL password
-- Sets all required environment variables
+- Generates secure passwords for the PostgreSQL admin and application user
+- Sets required environment variables (location, resource group, database credentials)
 - Configures Bicep parameters
 
 ### What Happens Behind the Scenes
 
 1. **Pre-provision Hook** (`infra/hooks/preprovision.sh`):
 
-   - Creates Service Principal: `sp-postgres-admin-<env-name>`
    - Sets environment variables:
      - `AZURE_LOCATION` (default: canadacentral)
      - `AZURE_RESOURCE_GROUP` (rg-<env-name>)
-     - `AAD_ADMIN_PRINCIPAL_NAME`
-     - `AAD_ADMIN_PRINCIPAL_ID`
-     - `AAD_ADMIN_TENANT_ID`
      - `POSTGRES_ADMIN_PASSWORD` (auto-generated if not set)
+     - `TODO_DB_USER` / `TODO_DB_PASSWORD` (auto-generated if not set)
 
 2. **Bicep Deployment**:
    - Reads values from azd environment variables
@@ -112,7 +107,6 @@ All parameters are now managed through `azd env` variables or defaults:
 - `environmentName`: automatically from `AZURE_ENV_NAME`
 - `location`: from `AZURE_LOCATION` (default: canadacentral)
 - `serviceName`: defaults to `api`
-- `aadAdministrator`: auto-populated from preprovision hook
 - `postgresAdminPassword`: auto-generated or from environment
 
 The `main.parameters.json` file uses variable substitution - no manual editing required
@@ -130,22 +124,6 @@ You should see:
 
 - `AcrPull` scoped to the Container Registry
 - `PostgreSQL Flexible Server Contributor` scoped to the PostgreSQL server
-
-### 6. Validate Database Access
-
-Connect to PostgreSQL using the AAD admin credentials and verify the managed identity principal appears:
-
-```bash
-psql "host=<postgres-fqdn> dbname=postgres user=<aad-admin-email> sslmode=require"
-```
-
-Inside psql:
-
-```sql
-SELECT * FROM pgaadauth_list_principals();
-```
-
-The user-assigned managed identity should be listed once it connects.
 
 ## Outputs
 

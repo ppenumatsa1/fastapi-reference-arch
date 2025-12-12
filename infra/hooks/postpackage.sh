@@ -18,11 +18,11 @@ if [ -z "$IMAGE_NAME" ] || [ "$IMAGE_NAME" = "null" ]; then
   exit 1
 fi
 
-# Also tag and push as :latest for convenience
+# Also tag and push as :latest and deploy using :latest
 LATEST_IMAGE="${IMAGE_NAME%:*}:latest"
 echo "Tagging image as latest: $LATEST_IMAGE"
 docker tag "$IMAGE_NAME" "$LATEST_IMAGE"
 docker push "$LATEST_IMAGE"
 
-echo "Setting IMAGE parameter to packaged image: $IMAGE_NAME"
-azd env set IMAGE "$IMAGE_NAME"
+echo "Setting IMAGE parameter to latest tag: $LATEST_IMAGE"
+azd env set IMAGE "$LATEST_IMAGE"
