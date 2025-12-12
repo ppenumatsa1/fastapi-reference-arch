@@ -22,10 +22,14 @@ async def test_create_todo(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_list_todos(client: AsyncClient):
     await client.post(f"{API_PREFIX}/todos/", json={"title": "List todo"})
-    response = await client.get(f"{API_PREFIX}/todos/")
+    response = await client.get(f"{API_PREFIX}/todos/?limit=2&offset=0")
     assert response.status_code == 200
     data = response.json()
-    assert len(data) >= 1
+    assert "items" in data and "total" in data and "limit" in data and "offset" in data
+    assert data["limit"] == 2
+    assert data["offset"] == 0
+    assert len(data["items"]) <= 2
+    assert data["total"] >= len(data["items"])
 
 
 @pytest.mark.asyncio

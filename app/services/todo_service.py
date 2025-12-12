@@ -1,7 +1,5 @@
 """Application service encapsulating todo workflows."""
 
-from collections.abc import Sequence
-
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,11 +14,25 @@ class TodoService:
     def __init__(self, session: AsyncSession):
         self.repository = TodoRepository(session)
 
-    async def list_todos(self) -> Sequence[TodoRead]:
-        logger.debug("List todos invoked")
-        todos = await self.repository.list()
-        logger.debug("List todos completed", extra={"count": len(todos)})
-        return [TodoRead.model_validate(todo) for todo in todos]
+    async def list_todos(self, limit: int, offset: int):
+        logger.debug("List todos invoked", extra={"limit": limit, "offset": offset})
+        todos = await self.repository.list(limit=limit, offset=offset)
+        total = await self.repository.count()
+        logger.debug(
+            "List todos completed",
+            extra={
+                "returned": len(todos),
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+            },
+        )
+        return {
+            "items": [TodoRead.model_validate(todo) for todo in todos],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }
 
     async def get_todo(self, todo_id: int) -> TodoRead:
         logger.debug("Get todo invoked", extra={"todo_id": todo_id})

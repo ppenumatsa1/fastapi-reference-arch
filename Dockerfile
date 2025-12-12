@@ -9,8 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+COPY pyproject.toml ./
+COPY app ./app
+RUN pip install --no-cache-dir --prefix=/install .
 
 
 FROM python:3.11-slim AS runtime

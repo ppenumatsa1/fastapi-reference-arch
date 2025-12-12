@@ -4,6 +4,7 @@ __pycache__/
 *.so
 *.egg-info/
 .build/
+build/
 
 # Environments
 .env

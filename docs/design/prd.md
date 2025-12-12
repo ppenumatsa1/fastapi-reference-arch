@@ -7,6 +7,7 @@ Provide a reference-grade TODO management API that demonstrates FastAPI best pra
 ## Users
 
 - Developers cloning the template for greenfield projects.
+- DevOps teams validating infrastructure automation scripts.
 
 ## Functional Requirements
 
@@ -19,11 +20,11 @@ Provide a reference-grade TODO management API that demonstrates FastAPI best pra
 
 - 99% of requests respond under 200 ms in local/dev environments.
 - Codebase must pass linting (ruff) and formatting (black/isort) gates.
-- Automated tests must run via CI prior to deployment.
+- Automated tests
+- Bicep templates
 
 ## Out of Scope
 
-- Authentication/authorization (reserved for Entra integration later).
+- Authentication/Authorization (reserved for Entra integration later).
+- Private Network Setup for IAC
 - Multi-tenant partitioning.
-- Bicep templates (placeholder only for now).
-- DevOps teams validating infrastructure automation scripts.

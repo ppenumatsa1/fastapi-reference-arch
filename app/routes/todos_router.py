@@ -2,12 +2,12 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.logging.logger import get_logger
-from app.core.schemas.todo import TodoCreate, TodoRead, TodoUpdate
+from app.core.schemas.todo import TodoCreate, TodoListResponse, TodoRead, TodoUpdate
 from app.services.todo_service import TodoService
 
 router = APIRouter()
@@ -21,10 +21,18 @@ def get_todo_service(db: Annotated[AsyncSession, Depends(get_db)]) -> TodoServic
 TodoServiceDep = Annotated[TodoService, Depends(get_todo_service)]
 
 
-@router.get("/", response_model=list[TodoRead])
-async def list_todos(service: TodoServiceDep, request: Request):
-    logger.debug("List todos request", extra={"path": request.url.path})
-    return await service.list_todos()
+@router.get("/", response_model=TodoListResponse)
+async def list_todos(
+    service: TodoServiceDep,
+    request: Request,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    logger.debug(
+        "List todos request",
+        extra={"path": request.url.path, "limit": limit, "offset": offset},
+    )
+    return await service.list_todos(limit=limit, offset=offset)
 
 
 @router.get("/{todo_id}", response_model=TodoRead)

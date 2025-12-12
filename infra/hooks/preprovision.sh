@@ -18,21 +18,13 @@ if [ -z "$ENV_NAME" ]; then
   exit 1
 fi
 
-# Set default location if not already set
-if [ -z "$AZURE_LOCATION" ]; then
-  DEFAULT_LOCATION="canadacentral"
-  echo "Setting default location: $DEFAULT_LOCATION"
-  azd env set AZURE_LOCATION "$DEFAULT_LOCATION"
-  AZURE_LOCATION="$DEFAULT_LOCATION"
-fi
-
 # Set resource group name convention
 RESOURCE_GROUP="rg-$ENV_NAME"
 echo "Resource Group: $RESOURCE_GROUP"
 azd env set AZURE_RESOURCE_GROUP "$RESOURCE_GROUP"
 
-# Set admin user (aligns with bicep default)
-POSTGRES_ADMIN_USER="${POSTGRES_ADMIN_USER:-aad_admin}"
+# Set admin user (aligns with password-only auth)
+POSTGRES_ADMIN_USER="${POSTGRES_ADMIN_USER:-pgadmin}"
 azd env set POSTGRES_ADMIN_USER "$POSTGRES_ADMIN_USER"
 
 echo ""

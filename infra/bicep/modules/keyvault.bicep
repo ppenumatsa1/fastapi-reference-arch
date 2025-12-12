@@ -6,7 +6,8 @@ param userAssignedIdentityPrincipalId string
 @secure()
 param todoDbPassword string
 
-var keyVaultName = 'azkv${resourceToken}'
+// Use environmentName prefix for better naming and uniqueness across environments
+var keyVaultName = 'kv-${environmentName}-${take(resourceToken, 8)}'
 
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: keyVaultName
@@ -20,7 +21,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
       family: 'A'
       name: 'standard'
     }
-    softDeleteRetentionInDays: 90
+    softDeleteRetentionInDays: 7  // Minimum allowed - faster purge for dev/test
     publicNetworkAccess: 'Enabled'
     accessPolicies: [
       {

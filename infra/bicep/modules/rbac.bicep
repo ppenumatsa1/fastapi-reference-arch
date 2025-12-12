@@ -19,6 +19,5 @@ resource acrPullAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' 
   }
 }
 
-// Note: PostgreSQL access is granted via AAD administrator configuration in postgres.bicep
-// The managed identity will authenticate to the database using Entra ID authentication
-// Database-level permissions are managed within PostgreSQL itself, not via Azure RBAC
+// Note: PostgreSQL access uses password-based authentication; managed identity is not used for database logins.
+// Database-level permissions are managed within PostgreSQL itself, not via Azure RBAC.

@@ -7,9 +7,9 @@ Create Date: 2025-12-05 00:00:00
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision = "20241205_create_todos"
 down_revision = None
@@ -27,19 +27,19 @@ def upgrade() -> None:
             "is_completed",
             sa.Boolean(),
             nullable=False,
-            server_default=sa.text("false"),
+            server_default=sa.false(),
         ),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
             nullable=False,
-            server_default=sa.text("TIMEZONE('utc', NOW())"),
+            server_default=sa.func.now(),
         ),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
             nullable=False,
-            server_default=sa.text("TIMEZONE('utc', NOW())"),
+            server_default=sa.func.now(),
         ),
     )
     op.create_index("ix_todos_id", "todos", ["id"], unique=False)

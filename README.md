@@ -22,21 +22,28 @@ Provide a reference-grade TODO management API that demonstrates FastAPI best pra
 
 Prerequisites: Docker, Python 3.12+, `make`.
 
-1. Clone and create env:
+1. Clone the repository:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
+git clone https://github.com/ppenumatsa1/fastapi-reference-arch.git
+cd fastapi-reference-arch
+```
+
+2. Create Python virtual environment and configure:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .\.venv\Scripts\Activate.ps1
 cp .env.example .env
 ```
 
-2. Bring up everything, install deps, run migrations, seed data (idempotent):
+3. Bring up everything, install deps, run migrations, seed data (idempotent):
 
 ```bash
 make setup
 ```
 
-This starts the Docker Compose stack, runs Alembic migrations, and seeds sample TODOs automatically. Logs: `docker compose logs -f api`. Stop: `make down`. Optional direct app run while DB is up: `uvicorn app.main:app --reload`.
+This starts the Docker Compose stack, runs Alembic migrations, and seeds sample TODOs automatically. Logs: `docker compose logs -f api`. Stop: `make down`. Optional direct app run while DB is up: `uvicorn app.main:app --reload`. To verify the local stack: `./scripts/verify_deployment.sh --env local` (defaults to `http://localhost:8000`).
 
 Environment flags worth tweaking while developing:
 
@@ -59,25 +66,90 @@ Run `make help` to see the latest list as new automation hooks are added.
 
 ## Azure Deployment (azd)
 
-Prerequisites: Azure CLI (`az login`), Azure Developer CLI (`azd`), permission to create resources/RBAC, and `psql` locally for the grant step.
+**Prerequisites:**
 
-Happy path:
+Install these tools first:
+
+**Linux (Ubuntu/Debian):**
 
 ```bash
-az login
+# Azure CLI
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+# Azure Developer CLI
+curl -fsSL https://aka.ms/install-azd.sh | bash
+
+# PostgreSQL client
+sudo apt-get update && sudo apt-get install -y postgresql-client
+
+# Python venv + dependencies (pyproject is the source of truth; requirements.txt points to it)
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt   # or: pip install '.[dev]'
+```
+
+**Windows (PowerShell as Administrator):**
+
+```powershell
+# Azure CLI
+winget install Microsoft.AzureCLI
+
+# Azure Developer CLI
+winget install Microsoft.Azd
+
+# PostgreSQL client
+winget install PostgreSQL.PostgreSQL
+
+# Python venv + dependencies (pyproject is the source of truth; requirements.txt points to it)
+py -3 -m venv .venv
+\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt   # or: pip install .[dev]
+```
+
+**Deploy to Azure:**
+
+```bash
+az login                # azd reuses these credentials
+python3 -m venv .venv   # or: py -3 -m venv .venv (Windows)
+source .venv/bin/activate  # or: .\.venv\Scripts\Activate.ps1 (Windows)
+pip install -r requirements.txt   # or: pip install .[dev]
 azd env new <env-name>
-azd up       # provision + deploy + run migrations + seed
+azd up                  # provision + deploy + run migrations + seed
 # subsequent deploys
 azd deploy
 ```
+
+**Note:** Python venv must be activated for `azd up` and `azd deploy` - the postdeploy hook runs Alembic migrations which requires Python dependencies.
+
+**Verify deployment:**
+
+```bash
+# Azure (uses CONTAINER_APP_FQDN or azd env)
+./scripts/verify_deployment.sh --env azure
+
+# Local (defaults to localhost:8000)
+./scripts/verify_deployment.sh --env local
+
+# Explicit URL override (any environment)
+./scripts/verify_deployment.sh --base-url https://my-app.azurecontainerapps.io
+```
+
+Runs automated tests to verify health, DB reads, and writes. The script defaults to local mode; Azure mode requires `CONTAINER_APP_FQDN` (or an azd env with that value) unless `--base-url` is provided.
+
+**Note:** On first run, `azd up` will interactively prompt you to:
+
+- Select an Azure subscription
+- Choose an existing resource group or create a new one
+- Pick an Azure region (e.g., Central US)
 
 What azd hooks do (summary):
 
 - Pre-provision ([infra/hooks/preprovision.sh](infra/hooks/preprovision.sh)): sets location/resource group defaults; generates Postgres admin and `todo_user` passwords into the azd env.
 - Bicep ([infra/bicep](infra/bicep)): provisions Container Apps, PostgreSQL Flexible Server, ACR, identities, and wiring.
 - Post-provision ([infra/hooks/postprovision.sh](infra/hooks/postprovision.sh)): creates `todo_user`, grants CONNECT/USAGE/CREATE and DML/sequence rights on `public`.
-- Post-package ([infra/hooks/postpackage.sh](infra/hooks/postpackage.sh)): re-tags the packaged image as `:latest`, pushes it, and sets the `IMAGE` env value so `azd deploy` picks it up.
 - Post-deploy ([infra/scripts/run_migrations.sh](infra/scripts/run_migrations.sh)): builds DSNs from env/Key Vault, runs `alembic upgrade head`, then seeds sample todos (idempotent).
+
+Each deployment uses a unique image tag (`azd-deploy-<timestamp>`) for traceability and rollback capability.
 
 Network/firewall: PostgreSQL firewall allows all IPv4 by default for development. Lock down in production via [infra/bicep/modules/postgres.bicep](infra/bicep/modules/postgres.bicep). For deeper details, see [infra/bicep/README.md](infra/bicep/README.md).
 

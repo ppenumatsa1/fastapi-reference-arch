@@ -21,8 +21,8 @@ param backupRetentionDays int = 7
   'Disabled'
 ])
 param geoRedundantBackup string = 'Disabled'
-@description('Admin login used for break-glass scenarios (AAD recommended for day-to-day access).')
-param administratorLogin string = 'aad_admin'
+@description('Admin login used for password-based access.')
+param administratorLogin string = 'pgadmin'
 @secure()
 @description('Admin password supplied via azd secret or pipeline variable. Not stored in source control.')
 param administratorPassword string

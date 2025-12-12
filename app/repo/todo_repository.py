@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging.logger import get_logger
@@ -17,11 +17,16 @@ class TodoRepository(BaseRepository[Todo]):
     def __init__(self, session: AsyncSession):
         super().__init__(session)
 
-    async def list(self) -> Sequence[Todo]:
-        stmt = select(Todo).order_by(Todo.created_at.desc())
+    async def list(self, limit: int, offset: int) -> Sequence[Todo]:
+        stmt = select(Todo).order_by(Todo.created_at.desc()).limit(limit).offset(offset)
         logger.debug("Fetching todo list")
         result = await self.session.execute(stmt)
         return result.scalars().all()
+
+    async def count(self) -> int:
+        stmt = select(func.count(Todo.id))
+        result = await self.session.execute(stmt)
+        return int(result.scalar_one())
 
     async def get(self, todo_id: int) -> Todo | None:
         logger.debug("Fetching todo", extra={"todo_id": todo_id})

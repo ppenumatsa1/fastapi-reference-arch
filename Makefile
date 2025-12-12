@@ -12,6 +12,7 @@ setup: deps precommit up migrate seed ## Bootstrap the local environment
 
 deps: ## Install Python dependencies into the active environment
 	$(PYTHON) -m pip install -r requirements.txt
+	rm -rf build
 
 precommit: ## Install git hooks for lint/format enforcement
 	@if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \

@@ -5,7 +5,6 @@ param tags object
 param serviceName string
 param logAnalyticsCustomerId string
 param logAnalyticsWorkspaceId string
-param acaSubnetId string
 param registryLoginServer string
 param userAssignedIdentityId string
 param minReplicas int = 0
@@ -60,9 +59,6 @@ resource managedEnvironment 'Microsoft.App/managedEnvironments@2024-02-02-previe
         customerId: logAnalyticsCustomerId
         sharedKey: logAnalyticsSharedKey
       }
-    }
-    vnetConfiguration: {
-      infrastructureSubnetId: acaSubnetId
     }
     workloadProfiles: [
       {

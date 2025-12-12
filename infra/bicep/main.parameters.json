@@ -6,19 +6,10 @@
       "value": "${AZURE_ENV_NAME}"
     },
     "location": {
-      "value": "${AZURE_LOCATION=canadacentral}"
+      "value": "${AZURE_LOCATION}"
     },
     "serviceName": {
       "value": "api"
-    },
-    "vnetCidr": {
-      "value": "10.24.0.0/16"
-    },
-    "acaSubnetCidr": {
-      "value": "10.24.0.0/24"
-    },
-    "postgresSubnetCidr": {
-      "value": "10.24.1.0/28"
     },
     "postgresAdminPassword": {
       "value": "${POSTGRES_ADMIN_PASSWORD}"
