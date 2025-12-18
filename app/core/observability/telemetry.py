@@ -1,6 +1,7 @@
 """OpenTelemetry instrumentation setup for Application Insights."""
 
 import logging
+import sys
 from typing import Any
 
 from opentelemetry import trace
@@ -11,12 +12,17 @@ logger = logging.getLogger(__name__)
 
 
 def setup_telemetry() -> None:
-    """Configure OpenTelemetry with Azure Monitor if connection string is available."""
+    """Configure OpenTelemetry; keep tracing active even without Azure exporter."""
     settings = get_settings()
 
     if not settings.applicationinsights_connection_string:
+        _ensure_tracer_provider(settings.app_name, add_console_exporter=True)
         logger.info(
-            "Application Insights connection string not set. Telemetry disabled."
+            (
+                "Application Insights connection string not set. "
+                "Telemetry exporter disabled; tracing still active for correlation."
+            ),
+            extra={"app_env": settings.app_env},
         )
         return
 
@@ -29,7 +35,7 @@ def setup_telemetry() -> None:
             logger_name=__name__,
         )
 
-        # Add trace context into logs
+        # Add trace context into logs when using stdlib logging
         LoggingInstrumentor().instrument(set_logging_format=True)
 
         logger.info(
@@ -49,11 +55,6 @@ def setup_telemetry() -> None:
 
 def instrument_app(app: Any) -> None:
     """Instrument FastAPI application with OpenTelemetry."""
-    settings = get_settings()
-
-    if not settings.applicationinsights_connection_string:
-        return
-
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
@@ -89,3 +90,47 @@ def get_current_span_id() -> str | None:
     except Exception:
         pass
     return None
+
+
+def get_current_correlation_id() -> str | None:
+    """Correlation ID derived from active trace/span."""
+    try:
+        trace_id = get_current_trace_id()
+        span_id = get_current_span_id()
+        if trace_id and span_id:
+            return f"{trace_id}-{span_id}"
+    except Exception:
+        pass
+    return None
+
+
+def _ensure_tracer_provider(
+    service_name: str, add_console_exporter: bool = False
+) -> None:
+    """Ensure tracer provider exists so spans are created without Azure exporter."""
+    try:
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import (
+            ConsoleSpanExporter,
+            SimpleSpanProcessor,
+        )
+
+        if isinstance(trace.get_tracer_provider(), TracerProvider):
+            return
+
+        resource = Resource.create({"service.name": service_name})
+        provider = TracerProvider(resource=resource)
+
+        if add_console_exporter:
+            console_out = logger.handlers[0].stream if logger.handlers else sys.stdout
+            provider.add_span_processor(
+                SimpleSpanProcessor(ConsoleSpanExporter(out=console_out))
+            )
+
+        trace.set_tracer_provider(provider)
+    except ImportError as e:
+        logger.warning(
+            "OpenTelemetry SDK not available to set tracer provider: "
+            f"{e}. Spans will be no-op."
+        )

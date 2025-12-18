@@ -50,16 +50,20 @@ class JsonFormatter(logging.Formatter):
         # Add OpenTelemetry trace context if available
         try:
             from app.core.observability.telemetry import (
+                get_current_correlation_id,
                 get_current_span_id,
                 get_current_trace_id,
             )
 
             trace_id = get_current_trace_id()
             span_id = get_current_span_id()
+            correlation_id = get_current_correlation_id()
             if trace_id:
                 log_record["trace_id"] = trace_id
             if span_id:
                 log_record["span_id"] = span_id
+            if correlation_id:
+                log_record["correlation_id"] = correlation_id
         except Exception:
             pass
 
