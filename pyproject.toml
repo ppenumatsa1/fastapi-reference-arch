@@ -7,6 +7,7 @@ name = "todo-api"
 version = "0.1.0"
 description = "Reference FastAPI TODO service with PostgreSQL"
 authors = [{ name = "Example", email = "example@example.com" }]
+license = { text = "MIT" }
 requires-python = ">=3.11"
 dependencies = [
 	"fastapi==0.115.0",

@@ -172,3 +172,7 @@ See [docs/design/projectstructure.md](docs/design/projectstructure.md) for the f
 ## Telemetry
 
 Application Insights is wired for the API; it activates when `APPLICATIONINSIGHTS_CONNECTION_STRING` is set. OpenTelemetry captures FastAPI, SQLAlchemy, and logging spans.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
