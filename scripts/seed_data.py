@@ -14,7 +14,7 @@ if str(ROOT_DIR) not in sys.path:
 from sqlalchemy import select  # noqa: E402
 
 from app.core.database import async_session_factory  # noqa: E402
-from app.core.models.todo import Todo  # noqa: E402
+from app.models.todo import Todo  # noqa: E402
 
 SAMPLE_TODOS = (
     {

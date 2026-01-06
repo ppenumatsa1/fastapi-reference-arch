@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.logging.logger import get_logger
-from app.core.schemas.todo import TodoCreate, TodoListResponse, TodoRead, TodoUpdate
+from app.schemas.todo import TodoCreate, TodoListResponse, TodoRead, TodoUpdate
 from app.services.todo_service import TodoService
 
 router = APIRouter()

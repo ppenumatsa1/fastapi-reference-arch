@@ -4,8 +4,8 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging.logger import get_logger
-from app.core.schemas.todo import TodoCreate, TodoRead, TodoUpdate
 from app.repo.todo_repository import TodoRepository
+from app.schemas.todo import TodoCreate, TodoRead, TodoUpdate
 
 logger = get_logger(__name__)
 

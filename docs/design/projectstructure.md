@@ -4,6 +4,10 @@
 fastapi-reference-arch/
 ├── app/
 │   ├── main.py
+│   ├── models/
+│   │   └── todo.py
+│   ├── schemas/
+│   │   └── todo.py
 │   ├── core/
 │   │   ├── config.py
 │   │   ├── database.py
@@ -12,12 +16,8 @@ fastapi-reference-arch/
 │   │   ├── logging/
 │   │   │   └── logger.py
 │   │   ├── middleware/
-│   │   ├── models/
-│   │   │   └── todo.py
 │   │   ├── observability/
 │   │   │   └── telemetry.py
-│   │   ├── schemas/
-│   │   │   └── todo.py
 │   │   ├── security/
 │   │   └── utils/
 │   ├── repo/
@@ -85,7 +85,9 @@ fastapi-reference-arch/
 ## Directory Purposes
 
 - **app/**: FastAPI application code
-  - **core/**: shared infrastructure (config, database, models, schemas, exceptions, logging, observability)
+  - **models/**: SQLAlchemy ORM models (domain entities)
+  - **schemas/**: Pydantic schemas (request/response DTOs)
+  - **core/**: shared infrastructure (config, database, exceptions, logging, observability)
   - **repo/**: data access layer (repositories)
   - **routes/**: API route handlers (routers)
   - **services/**: business logic layer
@@ -94,3 +96,18 @@ fastapi-reference-arch/
 - **scripts/**: development automation (lint, format, test, seed)
 - **tests/**: pytest test suites
 - **docs/design/**: architecture and design documentation
+
+## Design Rationale
+
+### Domain vs. Infrastructure Separation
+
+Models (`app/models`) and schemas (`app/schemas`) are kept at the application root level, separate from `core/`, to maintain a clear distinction between:
+
+- **Domain artifacts**: Business entities (SQLAlchemy models) and API contracts (Pydantic schemas) that change with feature requirements
+- **Infrastructure concerns**: Configuration, database engine, logging, middleware, and observability that change with operational requirements
+
+This separation:
+- Improves cognitive clarity for feature developers who primarily work with models/schemas
+- Reduces coupling between domain logic and infrastructure utilities
+- Makes import paths more intuitive (`from app.models import Todo` vs. `from app.core.models import Todo`)
+- Facilitates future bounded context organization if the application grows

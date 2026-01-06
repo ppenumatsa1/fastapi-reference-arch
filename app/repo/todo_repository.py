@@ -6,9 +6,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging.logger import get_logger
-from app.core.models.todo import Todo
-from app.core.schemas.todo import TodoCreate, TodoUpdate
+from app.models.todo import Todo
 from app.repo.base import BaseRepository
+from app.schemas.todo import TodoCreate, TodoUpdate
 
 logger = get_logger(__name__)
 
