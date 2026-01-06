@@ -107,6 +107,7 @@ Models (`app/models`) and schemas (`app/schemas`) are kept at the application ro
 - **Infrastructure concerns**: Configuration, database engine, logging, middleware, and observability that change with operational requirements
 
 This separation:
+
 - Improves cognitive clarity for feature developers who primarily work with models/schemas
 - Reduces coupling between domain logic and infrastructure utilities
 - Makes import paths more intuitive (`from app.models import Todo` vs. `from app.core.models import Todo`)
