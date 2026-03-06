@@ -6,20 +6,19 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging.logger import get_logger
-from app.models.todo import Todo
-from app.repo.base import BaseRepository
-from app.schemas.todo import TodoCreate, TodoUpdate
+from app.modules.todos.model import Todo
+from app.modules.todos.schemas import TodoCreate, TodoUpdate
 
 logger = get_logger(__name__)
 
 
-class TodoRepository(BaseRepository[Todo]):
+class TodoRepository:
     def __init__(self, session: AsyncSession):
-        super().__init__(session)
+        self.session = session
 
     async def list(self, limit: int, offset: int) -> Sequence[Todo]:
         stmt = select(Todo).order_by(Todo.created_at.desc()).limit(limit).offset(offset)
-        logger.debug("Fetching todo list")
+        logger.info("Fetching todo list")
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
@@ -29,7 +28,7 @@ class TodoRepository(BaseRepository[Todo]):
         return int(result.scalar_one())
 
     async def get(self, todo_id: int) -> Todo | None:
-        logger.debug("Fetching todo", extra={"todo_id": todo_id})
+        logger.info("Fetching todo", extra={"todo_id": todo_id})
         return await self.session.get(Todo, todo_id)
 
     async def create(self, payload: TodoCreate) -> Todo:

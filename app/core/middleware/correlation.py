@@ -11,27 +11,24 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
+        incoming_correlation = request.headers.get("x-correlation-id")
         span = trace.get_current_span()
         span_context = span.get_span_context()
-        tracer = trace.get_tracer(__name__)
 
-        if not span_context.is_valid:
-            # Ensure a span exists so logs have trace/span IDs even without exporters
-            with tracer.start_as_current_span("http.request") as fallback_span:
-                correlation_id = _record_context(request, fallback_span)
-                response = await call_next(request)
-                _set_response_headers(
-                    response, fallback_span.get_span_context(), correlation_id
-                )
-                return response
+        correlation_id = incoming_correlation or ""
+        if span_context.is_valid:
+            correlation_id = _record_context(request, span)
 
-        correlation_id = _record_context(request, span)
         response = await call_next(request)
 
         # Instrumentation may create a new span downstream; prefer the latest context
         current_ctx = trace.get_current_span().get_span_context()
         ctx_for_headers = current_ctx if current_ctx.is_valid else span_context
-        final_correlation = _correlation_id_from_ctx(ctx_for_headers) or correlation_id
+        final_correlation = (
+            _correlation_id_from_ctx(ctx_for_headers)
+            or correlation_id
+            or incoming_correlation
+        )
 
         _set_response_headers(response, ctx_for_headers, final_correlation)
         return response

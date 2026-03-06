@@ -1,7 +1,9 @@
+import os
+import tempfile
+
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
 from app.main import app
@@ -9,11 +11,13 @@ from app.main import app
 
 @pytest_asyncio.fixture()
 async def async_session_factory() -> async_sessionmaker[AsyncSession]:
+    fd, db_path = tempfile.mkstemp(prefix="todo-test-", suffix=".db")
+    os.close(fd)
+
     engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
+        f"sqlite+aiosqlite:///{db_path}",
         future=True,
         connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
     )
     async_session_factory = async_sessionmaker(
         bind=engine,
@@ -28,6 +32,8 @@ async def async_session_factory() -> async_sessionmaker[AsyncSession]:
         yield async_session_factory
     finally:
         await engine.dispose()
+        if os.path.exists(db_path):
+            os.remove(db_path)
 
 
 @pytest_asyncio.fixture()

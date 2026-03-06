@@ -20,8 +20,8 @@ Provide a reference-grade TODO management API that demonstrates FastAPI best pra
 
 - 99% of requests respond under 200 ms in local/dev environments.
 - Codebase must pass linting (ruff) and formatting (black/isort) gates.
-- Automated tests
-- Bicep templates
+- Automated tests must cover core CRUD behavior and health checks.
+- Infrastructure definitions must remain reproducible via Bicep templates under `infra/bicep/`.
 
 ## Out of Scope
 

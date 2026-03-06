@@ -84,7 +84,14 @@ class JsonFormatter(logging.Formatter):
 
 
 def get_logger(name: str | None = None) -> logging.Logger:
-    logger_name = name or _LOGGER_NAME
+    if name:
+        if name == _LOGGER_NAME or name.startswith(f"{_LOGGER_NAME}."):
+            logger_name = name
+        else:
+            logger_name = f"{_LOGGER_NAME}.{name}"
+    else:
+        logger_name = _LOGGER_NAME
+
     logger = logging.getLogger(logger_name)
     if not logger.handlers:
         handler = logging.StreamHandler()
@@ -93,5 +100,7 @@ def get_logger(name: str | None = None) -> logging.Logger:
         logger.addHandler(handler)
         env_level = os.getenv("LOG_LEVEL", "INFO").upper()
         logger.setLevel(env_level)
-        logger.propagate = False
+        # Keep stdout JSON logs while allowing Azure Monitor handlers up the chain
+        # to export request-correlated traces.
+        logger.propagate = True
     return logger

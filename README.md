@@ -1,6 +1,6 @@
 # fastapi-reference-arch
 
-Production-ready FastAPI reference implementing a TODO CRUD service backed by PostgreSQL and SQLAlchemy. The template (root folder name `fastapi-reference-arch`) showcases layered architecture (routes → services → repositories → core) plus automation hooks for Azure Bicep deployments.
+Production-ready FastAPI reference implementing a TODO CRUD service backed by PostgreSQL and SQLAlchemy. The template (root folder name `fastapi-reference-arch`) showcases a versioned API boundary plus feature modules (`api/v1` + `modules`) and automation hooks for Azure Bicep deployments.
 
 ## Goal
 
@@ -9,10 +9,10 @@ Provide a reference-grade TODO management API that demonstrates FastAPI best pra
 ## Features
 
 - Consistent naming conventions plus linting/formatting enforcement (Ruff, Black, isort) keep the codebase uniform.
-- FastAPI application using async/await end-to-end with a layered folder structure (routes → services → repositories) that isolates the data access layer.
+- FastAPI application using async/await end-to-end with clear boundaries between versioned HTTP contracts (`app/api/v1`) and reusable feature internals (`app/modules`).
 - Async SQLAlchemy ORM stack (`asyncpg`) with Alembic migrations to manage schema changes safely.
 - Pydantic-powered request/response models that validate inputs and outputs.
-- Centralized exception handling so API errors map cleanly to HTTP responses.
+- Centralized exception handling maps domain/app faults to consistent HTTP error responses.
 - Built-in observability via structured logs plus Application Insights/OpenTelemetry wiring.
 - Configurable via `.env`, adhering to `pydantic-settings` and Twelve-Factor conventions.
 - Docker Compose stack (FastAPI + PostgreSQL) for local development.
@@ -20,7 +20,7 @@ Provide a reference-grade TODO management API that demonstrates FastAPI best pra
 
 ## Local Development (Docker Compose)
 
-Prerequisites: Docker, Python 3.12+, `make`.
+Prerequisites: Docker, Python 3.11+, `make`.
 
 1. Clone the repository:
 
@@ -64,6 +64,11 @@ Environment flags worth tweaking while developing:
 
 Run `make help` to see the latest list as new automation hooks are added.
 
+## Reference Guides
+
+- Template implementation rules: [docs/guides/template-playbook.md](docs/guides/template-playbook.md)
+- Error response envelope and examples: [docs/guides/error-contract.md](docs/guides/error-contract.md)
+
 ## Azure Deployment (azd)
 
 **Prerequisites:**
@@ -82,10 +87,10 @@ curl -fsSL https://aka.ms/install-azd.sh | bash
 # PostgreSQL client
 sudo apt-get update && sudo apt-get install -y postgresql-client
 
-# Python venv + dependencies (pyproject is the source of truth; requirements.txt points to it)
+# Python venv + dependencies (pyproject.toml is the source of truth)
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt   # or: pip install '.[dev]'
+pip install '.[dev]'
 ```
 
 **Windows (PowerShell as Administrator):**
@@ -100,10 +105,10 @@ winget install Microsoft.Azd
 # PostgreSQL client
 winget install PostgreSQL.PostgreSQL
 
-# Python venv + dependencies (pyproject is the source of truth; requirements.txt points to it)
+# Python venv + dependencies (pyproject.toml is the source of truth)
 py -3 -m venv .venv
 \.venv\Scripts\Activate.ps1
-pip install -r requirements.txt   # or: pip install .[dev]
+pip install .[dev]
 ```
 
 **Deploy to Azure:**
@@ -112,7 +117,7 @@ pip install -r requirements.txt   # or: pip install .[dev]
 az login                # azd reuses these credentials
 python3 -m venv .venv   # or: py -3 -m venv .venv (Windows)
 source .venv/bin/activate  # or: .\.venv\Scripts\Activate.ps1 (Windows)
-pip install -r requirements.txt   # or: pip install .[dev]
+pip install .[dev]
 azd env new <env-name>
 azd up                  # provision + deploy + run migrations + seed
 # subsequent deploys
@@ -171,7 +176,36 @@ See [docs/design/projectstructure.md](docs/design/projectstructure.md) for the f
 
 ## Telemetry
 
-Application Insights is wired for the API; it activates when `APPLICATIONINSIGHTS_CONNECTION_STRING` is set. OpenTelemetry captures FastAPI, SQLAlchemy, and logging spans.
+Application Insights is wired for the API; it activates when `APPLICATIONINSIGHTS_CONNECTION_STRING` is set. OpenTelemetry captures FastAPI request spans, SQLAlchemy dependency spans, and application logs as traces.
+
+Current telemetry behavior:
+
+- Request and dependency correlation is enabled via OpenTelemetry context propagation.
+- Correlation headers (`traceparent`, `x-correlation-id`) are set by middleware.
+- ASGI low-level `receive/send` noise is reduced in code-level telemetry setup.
+
+Kusto helpers live under `scripts/kusto/`:
+
+- `requests.kql`
+- `dependencies.kql`
+- `exceptions.kql`
+- `traces.kql`
+- `end-to-end-flow-by-operation.kql` (optional per-operation timeline)
+- `run-observability-suite.sh` (runs the 4 core queries)
+
+Run all core checks:
+
+```bash
+./scripts/kusto/run-observability-suite.sh
+```
+
+Run end-to-end timeline query directly:
+
+```bash
+az monitor app-insights query \
+	--app <application-id> \
+	--analytics-query "$(cat scripts/kusto/end-to-end-flow-by-operation.kql)"
+```
 
 ## License
 

@@ -11,7 +11,7 @@ help: ## Display available targets
 setup: deps precommit up migrate seed ## Bootstrap the local environment
 
 deps: ## Install Python dependencies into the active environment
-	$(PYTHON) -m pip install -r requirements.txt
+	$(PYTHON) -m pip install '.[dev]'
 	rm -rf build
 
 precommit: ## Install git hooks for lint/format enforcement

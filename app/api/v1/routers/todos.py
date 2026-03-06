@@ -1,14 +1,20 @@
-"""HTTP routes for todo resources."""
+"""HTTP routes for todo resources (API v1)."""
 
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.schemas.todos import TodoCreate, TodoListResponse, TodoRead, TodoUpdate
 from app.core.database import get_db
 from app.core.logging.logger import get_logger
-from app.schemas.todo import TodoCreate, TodoListResponse, TodoRead, TodoUpdate
-from app.services.todo_service import TodoService
+from app.modules.todos.mapper import (
+    to_api_list_response,
+    to_api_read,
+    to_module_create,
+    to_module_update,
+)
+from app.modules.todos.service import TodoService
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -28,26 +34,29 @@ async def list_todos(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ):
-    logger.debug(
+    logger.info(
         "List todos request",
         extra={"path": request.url.path, "limit": limit, "offset": offset},
     )
-    return await service.list_todos(limit=limit, offset=offset)
+    todos = await service.list_todos(limit=limit, offset=offset)
+    return to_api_list_response(todos)
 
 
 @router.get("/{todo_id}", response_model=TodoRead)
 async def get_todo(todo_id: int, service: TodoServiceDep, request: Request):
-    logger.debug(
+    logger.info(
         "Get todo request",
         extra={"todo_id": todo_id, "path": request.url.path},
     )
-    return await service.get_todo(todo_id)
+    todo = await service.get_todo(todo_id)
+    return to_api_read(todo)
 
 
 @router.post("/", response_model=TodoRead, status_code=status.HTTP_201_CREATED)
 async def create_todo(payload: TodoCreate, service: TodoServiceDep, request: Request):
     logger.info("Create todo request", extra={"path": request.url.path})
-    return await service.create_todo(payload)
+    todo = await service.create_todo(to_module_create(payload))
+    return to_api_read(todo)
 
 
 @router.put("/{todo_id}", response_model=TodoRead)
@@ -61,7 +70,8 @@ async def update_todo(
         "Update todo request",
         extra={"todo_id": todo_id, "path": request.url.path},
     )
-    return await service.update_todo(todo_id, payload)
+    todo = await service.update_todo(todo_id, to_module_update(payload))
+    return to_api_read(todo)
 
 
 @router.delete("/{todo_id}", status_code=status.HTTP_204_NO_CONTENT)

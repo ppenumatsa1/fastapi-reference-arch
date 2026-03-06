@@ -8,8 +8,8 @@
 | Config            | pydantic-settings      | `.env` ingestion, type-safe settings.                                       |
 | Schema Validation | Pydantic v2            | Ensures request/response models stay validated and serialized consistently. |
 | Lint/Format       | Ruff, Black, isort     | Enforced before pre-commit adoption.                                        |
-| Testing           | pytest, httpx (later)  | Fixtures will target repository/service layers.                             |
-| CI/CD             | GitHub Actions         | Runs lint, format check, tests, Docker build.                               |
+| Testing           | pytest, httpx          | Async API tests run through HTTPX + ASGI transport fixtures.                |
+| CI/CD             | Makefile + scripts     | `make lint`/`make test` are the current quality gates.                      |
 | Future            | Azure Bicep + Entra ID | Reserved for infrastructure/auth follow-up.                                 |
 
 ## Developer Workflow Commands

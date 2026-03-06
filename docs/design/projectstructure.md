@@ -3,30 +3,44 @@
 ```
 fastapi-reference-arch/
 ├── app/
+│   ├── __init__.py
 │   ├── main.py
-│   ├── models/
-│   │   └── todo.py
-│   ├── schemas/
-│   │   └── todo.py
+│   ├── api/
+│   │   ├── __init__.py
+│   │   └── v1/
+│   │       ├── __init__.py
+│   │       ├── routers/
+│   │       │   ├── __init__.py
+│   │       │   └── todos.py
+│   │       └── schemas/
+│   │           ├── __init__.py
+│   │           └── todos.py
 │   ├── core/
+│   │   ├── __init__.py
 │   │   ├── config.py
 │   │   ├── database.py
 │   │   ├── exceptions/
+│   │   │   ├── __init__.py
 │   │   │   └── app_exceptions.py
 │   │   ├── logging/
+│   │   │   ├── __init__.py
 │   │   │   └── logger.py
 │   │   ├── middleware/
+│   │   │   └── correlation.py
 │   │   ├── observability/
+│   │   │   ├── __init__.py
 │   │   │   └── telemetry.py
 │   │   ├── security/
 │   │   └── utils/
-│   ├── repo/
-│   │   ├── base.py
-│   │   └── todo_repository.py
-│   ├── routes/
-│   │   └── todos_router.py
-│   └── services/
-│       └── todo_service.py
+│   ├── modules/
+│   │   ├── __init__.py
+│   │   └── todos/
+│   │       ├── __init__.py
+│   │       ├── mapper.py
+│   │       ├── model.py
+│   │       ├── repository.py
+│   │       ├── schemas.py
+│   │       └── service.py
 ├── alembic/
 │   ├── env.py
 │   └── versions/
@@ -34,18 +48,17 @@ fastapi-reference-arch/
 ├── infra/
 │   ├── bicep/
 │   │   ├── main.bicep
+│   │   ├── main.json
 │   │   ├── main.parameters.json
 │   │   └── modules/
 │   │       ├── aca.bicep
 │   │       ├── identity.bicep
 │   │       ├── keyvault.bicep
 │   │       ├── monitoring.bicep
-│   │       ├── network.bicep
 │   │       ├── postgres.bicep
 │   │       ├── rbac.bicep
 │   │       └── registry.bicep
 │   ├── hooks/
-│   │   ├── postpackage.sh
 │   │   ├── postprovision.sh
 │   │   └── preprovision.sh
 │   └── scripts/
@@ -53,14 +66,26 @@ fastapi-reference-arch/
 │       └── run_migrations.sh
 ├── scripts/
 │   ├── format.sh
+│   ├── kusto/
+│   │   ├── requests.kql
+│   │   ├── dependencies.kql
+│   │   ├── exceptions.kql
+│   │   ├── traces.kql
+│   │   ├── end-to-end-flow-by-operation.kql
+│   │   └── run-observability-suite.sh
 │   ├── lint.sh
 │   ├── seed_data.py
-│   └── test.sh
+│   ├── test.sh
+│   └── verify_deployment.sh
 ├── tests/
 │   ├── conftest.py
 │   └── test_todos.py
 ├── docs/
+│   ├── guides/
+│   │   ├── error-contract.md
+│   │   └── template-playbook.md
 │   └── design/
+│       ├── instrument-flow.md
 │       ├── prd.md
 │       ├── projectstructure.md
 │       ├── techstack.md
@@ -71,8 +96,7 @@ fastapi-reference-arch/
 ├── Dockerfile
 ├── Makefile
 ├── pyproject.toml
-├── README.md
-└── requirements.txt
+└── README.md
 ```
 
 ## Naming Conventions
@@ -85,30 +109,39 @@ fastapi-reference-arch/
 ## Directory Purposes
 
 - **app/**: FastAPI application code
-  - **models/**: SQLAlchemy ORM models (domain entities)
-  - **schemas/**: Pydantic schemas (request/response DTOs)
+  - **api/v1/**: versioned HTTP layer (routers + API contract schemas)
+  - **modules/**: feature modules that contain business logic and persistence
+    - **modules/todos/**: internal todo model, service, repository, schemas, and mapping helpers
   - **core/**: shared infrastructure (config, database, exceptions, logging, observability)
-  - **repo/**: data access layer (repositories)
-  - **routes/**: API route handlers (routers)
-  - **services/**: business logic layer
 - **alembic/**: database migration scripts
 - **infra/**: infrastructure-as-code (Bicep), deployment hooks, and scripts
 - **scripts/**: development automation (lint, format, test, seed)
+  - **scripts/kusto/**: operational observability queries and suite runner
 - **tests/**: pytest test suites
+- **docs/guides/**: reusable implementation guides and contracts
 - **docs/design/**: architecture and design documentation
 
 ## Design Rationale
 
-### Domain vs. Infrastructure Separation
+### Versioned API Boundary + Feature Modules
 
-Models (`app/models`) and schemas (`app/schemas`) are kept at the application root level, separate from `core/`, to maintain a clear distinction between:
+The structure separates external API contracts from internal feature implementation:
 
-- **Domain artifacts**: Business entities (SQLAlchemy models) and API contracts (Pydantic schemas) that change with feature requirements
-- **Infrastructure concerns**: Configuration, database engine, logging, middleware, and observability that change with operational requirements
+- **API boundary (`app/api/v1`)**: request/response contracts and route declarations that are version-specific
+- **Feature internals (`app/modules/todos`)**: business logic, data access, and persistence models that should stay reusable across API versions
+- **Infrastructure (`app/core`)**: platform concerns such as config, db lifecycle, middleware, logging, and telemetry
 
 This separation:
 
-- Improves cognitive clarity for feature developers who primarily work with models/schemas
-- Reduces coupling between domain logic and infrastructure utilities
-- Makes import paths more intuitive (`from app.models import Todo` vs. `from app.core.models import Todo`)
-- Facilitates future bounded context organization if the application grows
+- Keeps version churn isolated to `api/vX` folders
+- Allows future `v2` to reuse the same module services/repositories with a different HTTP contract
+- Improves discoverability for contributors by making API and module responsibilities explicit
+
+## Reference Playbook
+
+For future projects using this repo as a template:
+
+1. Build each business capability under `app/modules/<feature>/`.
+2. Keep HTTP contracts versioned under `app/api/v1/` and avoid leaking API DTOs into services.
+3. Raise `AppError` subclasses in services and convert them to HTTP responses with global handlers in `app/main.py`.
+4. Introduce `app/api/v2/` only when an API contract change is breaking; keep module internals reusable.

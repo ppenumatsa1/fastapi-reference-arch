@@ -1,11 +1,11 @@
 """Application service encapsulating todo workflows."""
 
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import NotFoundError
 from app.core.logging.logger import get_logger
-from app.repo.todo_repository import TodoRepository
-from app.schemas.todo import TodoCreate, TodoRead, TodoUpdate
+from app.modules.todos.repository import TodoRepository
+from app.modules.todos.schemas import TodoCreate, TodoRead, TodoUpdate
 
 logger = get_logger(__name__)
 
@@ -15,10 +15,10 @@ class TodoService:
         self.repository = TodoRepository(session)
 
     async def list_todos(self, limit: int, offset: int):
-        logger.debug("List todos invoked", extra={"limit": limit, "offset": offset})
+        logger.info("List todos invoked", extra={"limit": limit, "offset": offset})
         todos = await self.repository.list(limit=limit, offset=offset)
         total = await self.repository.count()
-        logger.debug(
+        logger.info(
             "List todos completed",
             extra={
                 "returned": len(todos),
@@ -35,14 +35,11 @@ class TodoService:
         }
 
     async def get_todo(self, todo_id: int) -> TodoRead:
-        logger.debug("Get todo invoked", extra={"todo_id": todo_id})
+        logger.info("Get todo invoked", extra={"todo_id": todo_id})
         todo = await self.repository.get(todo_id)
         if not todo:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Todo not found",
-            )
-        logger.debug("Get todo completed", extra={"todo_id": todo_id})
+            raise NotFoundError("Todo not found")
+        logger.info("Get todo completed", extra={"todo_id": todo_id})
         return TodoRead.model_validate(todo)
 
     async def create_todo(self, payload: TodoCreate) -> TodoRead:
@@ -55,10 +52,7 @@ class TodoService:
         logger.info("Update todo invoked", extra={"todo_id": todo_id})
         todo = await self.repository.get(todo_id)
         if not todo:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Todo not found",
-            )
+            raise NotFoundError("Todo not found")
         updated = await self.repository.update(todo, payload)
         logger.info("Update todo completed", extra={"todo_id": todo_id})
         return TodoRead.model_validate(updated)
@@ -67,9 +61,6 @@ class TodoService:
         logger.info("Delete todo invoked", extra={"todo_id": todo_id})
         todo = await self.repository.get(todo_id)
         if not todo:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Todo not found",
-            )
+            raise NotFoundError("Todo not found")
         await self.repository.delete(todo)
         logger.info("Delete todo completed", extra={"todo_id": todo_id})
