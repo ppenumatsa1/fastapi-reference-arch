@@ -68,6 +68,8 @@ Run `make help` to see the latest list as new automation hooks are added.
 
 - Template implementation rules: [docs/guides/template-playbook.md](docs/guides/template-playbook.md)
 - Error response envelope and examples: [docs/guides/error-contract.md](docs/guides/error-contract.md)
+- Entra auth setup and verification modes: [docs/guides/auth-setup.md](docs/guides/auth-setup.md)
+- Observability validation and KQL workflow: [docs/guides/observability-validation.md](docs/guides/observability-validation.md)
 
 ## Azure Deployment (azd)
 
@@ -119,6 +121,7 @@ python3 -m venv .venv   # or: py -3 -m venv .venv (Windows)
 source .venv/bin/activate  # or: .\.venv\Scripts\Activate.ps1 (Windows)
 pip install .[dev]
 azd env new <env-name>
+azd provision --preview
 azd up                  # provision + deploy + run migrations + seed
 # subsequent deploys
 azd deploy
@@ -140,6 +143,12 @@ azd deploy
 ```
 
 Runs automated tests to verify health, DB reads, and writes. The script defaults to local mode; Azure mode requires `CONTAINER_APP_FQDN` (or an azd env with that value) unless `--base-url` is provided.
+
+Config resolution behavior:
+
+- `--base-url` or `--env azure` defaults to auth on and telemetry-check mode on.
+- Local target defaults to auth off and telemetry-check mode off.
+- For auth inputs, precedence is: CLI args -> environment vars -> `azd env` values.
 
 **Note:** On first run, `azd up` will interactively prompt you to:
 

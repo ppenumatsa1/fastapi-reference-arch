@@ -1,0 +1,13 @@
+let windowStart = ago(60m);
+customEvents
+| where timestamp >= windowStart
+| where name startswith "todo."
+| project
+    timestamp,
+    operation_Id,
+    operation_Name,
+    name,
+    todo_action = tostring(customDimensions["todo.action"]),
+    todo_id = tostring(customDimensions["todo.id"])
+| order by timestamp desc
+| take 400

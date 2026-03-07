@@ -1,4 +1,9 @@
-"""Pydantic schemas for todo resources."""
+"""Internal module schemas for todo resources.
+
+These models intentionally mirror current API v1 fields, but they remain
+module-owned so internal logic can evolve independently from versioned API
+contracts.
+"""
 
 from __future__ import annotations
 

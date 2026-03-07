@@ -9,7 +9,7 @@ Usage:
 Notes:
   - If --app-id is not provided, this script attempts to resolve it from
     azd env value APPLICATIONINSIGHTS_CONNECTION_STRING (ApplicationId=...).
-  - Runs regular KQL queries for requests/dependencies/exceptions/traces.
+  - Runs KQL queries for requests/dependencies/exceptions/traces/custom events/custom metrics.
 
 Examples:
   scripts/kusto/run-observability-suite.sh
@@ -92,17 +92,21 @@ extract_scalar_count() {
 }
 
 validate_counts() {
-  local req_count dep_count trace_count
+  local req_count dep_count trace_count custom_event_count custom_metric_count
 
   req_count="$(extract_scalar_count "requests | where timestamp > ago(30m) | count")"
   dep_count="$(extract_scalar_count "dependencies | where timestamp > ago(30m) | count")"
   trace_count="$(extract_scalar_count "traces | where timestamp > ago(30m) | count")"
+  custom_event_count="$(extract_scalar_count "customEvents | where timestamp > ago(60m) | where name startswith 'todo.' | count")"
+  custom_metric_count="$(extract_scalar_count "customMetrics | where timestamp > ago(60m) | where name startswith 'todo.' | count")"
 
   echo ""
   echo "Validation (last 30m):"
   echo "  requests     : $req_count"
   echo "  dependencies : $dep_count"
   echo "  traces       : $trace_count"
+  echo "  customEvents : $custom_event_count (todo.* in last 60m)"
+  echo "  customMetrics: $custom_metric_count (todo.* in last 60m)"
 
   if [[ "$req_count" -lt 1 ]]; then
     echo "Validation failed: expected at least 1 request row." >&2
@@ -119,12 +123,25 @@ validate_counts() {
     exit 2
   fi
 
+  if [[ "$custom_event_count" -lt 1 ]]; then
+    echo "Validation failed: expected at least 1 todo.* custom event row." >&2
+    exit 2
+  fi
+
+  if [[ "$custom_metric_count" -lt 1 ]]; then
+    echo "Validation failed: expected at least 1 todo.* custom metric row." >&2
+    exit 2
+  fi
+
   echo "Validation passed."
 }
 
 run_file_query "Requests" "$SCRIPT_DIR/requests.kql"
+run_file_query "Auth failures (401/403)" "$SCRIPT_DIR/auth-failures.kql"
 run_file_query "Dependencies" "$SCRIPT_DIR/dependencies.kql"
 run_file_query "Exceptions" "$SCRIPT_DIR/exceptions.kql"
 run_file_query "Traces" "$SCRIPT_DIR/traces.kql"
+run_file_query "Custom events" "$SCRIPT_DIR/custom-events.kql"
+run_file_query "Custom metrics" "$SCRIPT_DIR/custom-metrics.kql"
 
 validate_counts

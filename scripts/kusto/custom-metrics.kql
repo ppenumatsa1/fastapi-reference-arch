@@ -1,0 +1,14 @@
+let windowStart = ago(60m);
+customMetrics
+| where timestamp >= windowStart
+| where name startswith "todo."
+| project
+    timestamp,
+    operation_Id,
+    operation_Name,
+    name,
+    value,
+    todo_action = tostring(customDimensions["todo.action"]),
+    todo_outcome = tostring(customDimensions["todo.outcome"])
+| order by timestamp desc
+| take 400

@@ -6,6 +6,17 @@ cd "$ROOT_DIR"
 
 export PYTHONPATH="$ROOT_DIR${PYTHONPATH:+:$PYTHONPATH}"
 
+# Prefer project virtual environment for hook execution when available.
+if [ -z "${VIRTUAL_ENV:-}" ] && [ -f "$ROOT_DIR/.venv/bin/activate" ]; then
+  # shellcheck disable=SC1091
+  source "$ROOT_DIR/.venv/bin/activate"
+fi
+
+PYTHON_BIN="${PYTHON:-python3}"
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+  PYTHON_BIN="python"
+fi
+
 echo "Running database migrations..."
 
 DATABASE_USER="${DATABASE_USER:-${TODO_DB_USER:-todo_user}}"
@@ -73,9 +84,9 @@ else
   done
 fi
 
-alembic upgrade head
+"$PYTHON_BIN" -m alembic upgrade head
 
 echo "Seeding sample data..."
-python scripts/seed_data.py
+"$PYTHON_BIN" scripts/seed_data.py
 
 echo "✓ Migrations completed successfully"

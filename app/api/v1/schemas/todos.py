@@ -1,4 +1,9 @@
-"""HTTP request/response schemas for Todos API v1."""
+"""HTTP request/response schemas for Todos API v1.
+
+These models are the external API contract and are intentionally version-scoped.
+Do not import module-layer schemas here; cross-layer translation is handled by
+`app/modules/todos/mapper.py`.
+"""
 
 from __future__ import annotations
 

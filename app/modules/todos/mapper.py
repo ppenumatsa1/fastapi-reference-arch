@@ -1,4 +1,7 @@
-"""Mapping helpers between internal todo models and API v1 contracts."""
+"""Mapping helpers between internal todo models and API v1 contracts.
+
+This layer keeps API schemas and module schemas decoupled on purpose.
+"""
 
 from app.api.v1.schemas.todos import TodoCreate as ApiTodoCreate
 from app.api.v1.schemas.todos import TodoListResponse as ApiTodoListResponse

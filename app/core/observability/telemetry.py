@@ -51,6 +51,14 @@ def setup_telemetry() -> None:
 
     settings = get_settings()
 
+    if not settings.enable_telemetry:
+        _ensure_tracer_provider(settings.app_name, add_console_exporter=True)
+        logger.info(
+            "Telemetry disabled by configuration (ENABLE_TELEMETRY=false)",
+            extra={"app_env": settings.app_env},
+        )
+        return
+
     if not settings.applicationinsights_connection_string:
         _ensure_tracer_provider(settings.app_name, add_console_exporter=True)
         logger.info(

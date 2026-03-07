@@ -41,6 +41,24 @@ class Settings(BaseSettings):
 
     # Application Insights
     applicationinsights_connection_string: str | None = None
+    enable_telemetry: bool = Field(default=False, alias="ENABLE_TELEMETRY")
+
+    # Microsoft Entra authentication
+    require_auth: bool = Field(default=False, alias="REQUIRE_AUTH")
+    entra_tenant_id: str | None = Field(default=None, alias="ENTRA_TENANT_ID")
+    entra_api_audience: str | None = Field(default=None, alias="ENTRA_API_AUDIENCE")
+    entra_authority: str = Field(
+        default="https://login.microsoftonline.com",
+        alias="ENTRA_AUTHORITY",
+    )
+    entra_jwks_cache_ttl_seconds: int = Field(
+        default=3600,
+        alias="ENTRA_JWKS_CACHE_TTL_SECONDS",
+    )
+    entra_clock_skew_seconds: int = Field(
+        default=60,
+        alias="ENTRA_CLOCK_SKEW_SECONDS",
+    )
 
     log_level: str = "INFO"
 
