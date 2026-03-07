@@ -14,12 +14,6 @@
     "postgresAdminPassword": {
       "value": "${POSTGRES_ADMIN_PASSWORD}"
     },
-    "todoDbPassword": {
-      "value": "${TODO_DB_PASSWORD}"
-    },
-    "todoDbUser": {
-      "value": "${TODO_DB_USER=todo_user}"
-    },
     "environmentVariables": {
       "value": [
         {

@@ -165,14 +165,15 @@ See [docs/design/projectstructure.md](docs/design/projectstructure.md) for the f
 ## Database Authentication Modes
 
 - **Local (password mode)**: Docker Compose supplies `todo_user` / `todo_pass` for the bundled PostgreSQL container. Override via `.env` if needed.
-- **Azure (password mode)**: The app uses a dedicated `todo_user` whose password lives in Key Vault as `todo-db-password`; Container Apps injects it via secret reference. The azd hooks create/rotate the user and grant the required privileges.
+- **Azure (Microsoft Entra mode)**: The app uses the Container Apps user-assigned managed identity for PostgreSQL login. Runtime acquires short-lived Entra access tokens and does not rely on `DATABASE_PASSWORD`.
 
 ## Migrations + Config
 
 - Azure: postdeploy hook runs migrations and seeds on every `azd deploy`.
-- Local/CI: `bash ./infra/scripts/run_migrations.sh` (honors `DATABASE_*` / `TODO_DB_*`; can pull password from Key Vault when `AZURE_KEY_VAULT_NAME`/`KEYVAULT_NAME` are set).
+- Azure migration hook uses Entra token auth (`DB_AUTH_MODE=aad`) and the configured PostgreSQL Entra admin identity.
+- Local/CI: `bash ./infra/scripts/run_migrations.sh` (password mode for local Docker defaults, or Entra token mode when `DB_AUTH_MODE=aad`).
 - Local defaults: host `postgres`, port `5432`, user `todo_user`, password `todo_pass`, db `todo_db`, `APP_ENV=development`, `LOG_LEVEL=INFO`.
-- Azure env (password mode): see the app variables listed in [infra/bicep/README.md](infra/bicep/README.md#app-configuration-azure-password-mode).
+- Azure env (Entra mode): `DB_AUTH_MODE=aad`, `DATABASE_HOST=<postgres-fqdn>`, `DATABASE_NAME=postgres`, `DATABASE_USER=<managed-identity-name>`, `AZURE_CLIENT_ID=<uami-client-id>`.
 
 ## Telemetry
 

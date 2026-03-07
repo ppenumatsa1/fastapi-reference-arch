@@ -32,6 +32,12 @@ param administratorPassword string
   'Disabled'
 ])
 param publicNetworkAccess string = 'Enabled'
+@description('Database authentication mode. Use aad for Entra auth and password disablement.')
+@allowed([
+  'password'
+  'aad'
+])
+param authMode string = 'aad'
 
 var serverName = 'azpgs${resourceToken}'
 
@@ -64,8 +70,8 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' =
       mode: 'Disabled'
     }
     authConfig: {
-      activeDirectoryAuth: 'Disabled'
-      passwordAuth: 'Enabled'
+      activeDirectoryAuth: authMode == 'aad' ? 'Enabled' : 'Disabled'
+      passwordAuth: authMode == 'aad' ? 'Disabled' : 'Enabled'
     }
   }
 }

@@ -103,7 +103,7 @@ POSTGRES_ADMIN_USER="${POSTGRES_ADMIN_USER:-pgadmin}"
 azd env set POSTGRES_ADMIN_USER "$POSTGRES_ADMIN_USER"
 
 echo ""
-echo "Note: Post-provision will configure the dedicated app DB user with these credentials"
+echo "Note: Post-provision will configure PostgreSQL Entra principal grants for the runtime managed identity"
 
 # Generate secure PostgreSQL admin password if not already set
 if [ -z "$POSTGRES_ADMIN_PASSWORD" ]; then
@@ -117,20 +117,26 @@ else
   echo "Using existing PostgreSQL admin password from environment."
 fi
 
-# Generate dedicated app DB user credentials if missing
-TODO_DB_USER="${TODO_DB_USER:-todo_user}"
-azd env set TODO_DB_USER "$TODO_DB_USER"
+POSTGRES_ENTRA_ADMIN_OBJECT_ID="${POSTGRES_ENTRA_ADMIN_OBJECT_ID:-}"
+POSTGRES_ENTRA_ADMIN_NAME="${POSTGRES_ENTRA_ADMIN_NAME:-}"
+POSTGRES_ENTRA_ADMIN_TYPE="${POSTGRES_ENTRA_ADMIN_TYPE:-User}"
+AZD_ENV_JSON=$(get_azd_env_json)
 
-if [ -z "$TODO_DB_PASSWORD" ]; then
-  echo ""
-  echo "Generating secure password for $TODO_DB_USER..."
-  TODO_DB_PASSWORD_GENERATED=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
-  azd env set TODO_DB_PASSWORD "$TODO_DB_PASSWORD_GENERATED" --no-prompt
-  echo "Todo DB user password generated and stored securely."
-else
-  echo ""
-  echo "Using existing password for $TODO_DB_USER from environment."
+if [ -z "$POSTGRES_ENTRA_ADMIN_OBJECT_ID" ] || [ -z "$POSTGRES_ENTRA_ADMIN_NAME" ]; then
+  [ -z "$POSTGRES_ENTRA_ADMIN_OBJECT_ID" ] && POSTGRES_ENTRA_ADMIN_OBJECT_ID=$(get_azd_env_value "$AZD_ENV_JSON" "POSTGRES_ENTRA_ADMIN_OBJECT_ID")
+  [ -z "$POSTGRES_ENTRA_ADMIN_NAME" ] && POSTGRES_ENTRA_ADMIN_NAME=$(get_azd_env_value "$AZD_ENV_JSON" "POSTGRES_ENTRA_ADMIN_NAME")
+  [ -z "$POSTGRES_ENTRA_ADMIN_TYPE" ] && POSTGRES_ENTRA_ADMIN_TYPE=$(get_azd_env_value "$AZD_ENV_JSON" "POSTGRES_ENTRA_ADMIN_TYPE")
 fi
+
+if [ -z "$POSTGRES_ENTRA_ADMIN_OBJECT_ID" ] || [ -z "$POSTGRES_ENTRA_ADMIN_NAME" ]; then
+  echo "Error: PostgreSQL Entra admin identity is required." >&2
+  echo "Set POSTGRES_ENTRA_ADMIN_OBJECT_ID and POSTGRES_ENTRA_ADMIN_NAME before running azd provision/up." >&2
+  exit 1
+fi
+
+azd env set POSTGRES_ENTRA_ADMIN_OBJECT_ID "$POSTGRES_ENTRA_ADMIN_OBJECT_ID" --no-prompt
+azd env set POSTGRES_ENTRA_ADMIN_NAME "$POSTGRES_ENTRA_ADMIN_NAME" --no-prompt
+azd env set POSTGRES_ENTRA_ADMIN_TYPE "$POSTGRES_ENTRA_ADMIN_TYPE" --no-prompt
 
 echo ""
 echo "Configuring Entra app registrations (API + client)..."
@@ -138,7 +144,6 @@ echo "Configuring Entra app registrations (API + client)..."
 TENANT_ID=$(az account show --query tenantId -o tsv)
 API_APP_DISPLAY_NAME="todo-api-${ENV_NAME}"
 CLIENT_APP_DISPLAY_NAME="todo-client-${ENV_NAME}"
-AZD_ENV_JSON=$(get_azd_env_json)
 EXISTING_ENV_CLIENT_ID=$(get_azd_env_value "$AZD_ENV_JSON" "ENTRA_CLIENT_ID")
 EXISTING_ENV_CLIENT_SECRET=$(get_azd_env_value "$AZD_ENV_JSON" "ENTRA_CLIENT_SECRET")
 
@@ -244,6 +249,7 @@ azd env set ENTRA_CLIENT_SECRET "$ENTRA_CLIENT_SECRET" --no-prompt
 azd env set ENTRA_API_APP_ID "$API_APP_ID" --no-prompt
 azd env set ENTRA_ROLE_TODOS_READ_ID "$READ_ROLE_ID" --no-prompt
 azd env set ENTRA_ROLE_TODOS_WRITE_ID "$WRITE_ROLE_ID" --no-prompt
+azd env set DB_AUTH_MODE "aad" --no-prompt
 azd env set REQUIRE_AUTH "true" --no-prompt
 azd env set ENABLE_TELEMETRY "true" --no-prompt
 
@@ -255,6 +261,7 @@ echo "Environment variables set:"
 echo "  - AZURE_LOCATION: $AZURE_LOCATION"
 echo "  - AZURE_RESOURCE_GROUP: $RESOURCE_GROUP"
 echo "  - POSTGRES_ADMIN_PASSWORD: *** (hidden)"
+echo "  - POSTGRES_ENTRA_ADMIN_NAME: $POSTGRES_ENTRA_ADMIN_NAME"
 echo "  - ENTRA_API_AUDIENCE: $API_AUDIENCE"
 echo "  - ENTRA_CLIENT_ID: $CLIENT_APP_ID"
 echo "  - ENTRA_CLIENT_SECRET: *** (hidden)"

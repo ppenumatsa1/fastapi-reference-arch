@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # Azure Developer CLI Post-Provision Hook
-# Configures the dedicated application database user using password authentication
+# Configures PostgreSQL Entra admin and grants runtime UAMI database privileges.
 
-set -e
+set -euo pipefail
 
 echo ""
 echo "=========================================="
-echo "Post-Provision Hook: Database User Setup"
+echo "Post-Provision Hook: Database Principal Setup"
 echo "=========================================="
 
 ENV_NAME="${AZURE_ENV_NAME}"
@@ -15,28 +15,30 @@ VALUES=$(azd env get-values --output json)
 
 RESOURCE_GROUP=$(echo "$VALUES" | jq -r '.AZURE_RESOURCE_GROUP')
 POSTGRES_FQDN=$(echo "$VALUES" | jq -r '.POSTGRES_FQDN')
+POSTGRES_SERVER_NAME=$(echo "$VALUES" | jq -r '.POSTGRES_SERVER_NAME')
 POSTGRES_DB=$(echo "$VALUES" | jq -r '.POSTGRES_DB // "postgres"')
-POSTGRES_ADMIN_USER=$(echo "$VALUES" | jq -r '.POSTGRES_ADMIN_USER // "pgadmin"')
-POSTGRES_ADMIN_PASSWORD=$(echo "$VALUES" | jq -r '.POSTGRES_ADMIN_PASSWORD')
-TODO_DB_USER=$(echo "$VALUES" | jq -r '.TODO_DB_USER // "todo_user"')
-TODO_DB_PASSWORD=$(echo "$VALUES" | jq -r '.TODO_DB_PASSWORD')
+POSTGRES_ENTRA_ADMIN_OBJECT_ID=$(echo "$VALUES" | jq -r '.POSTGRES_ENTRA_ADMIN_OBJECT_ID // empty')
+POSTGRES_ENTRA_ADMIN_NAME=$(echo "$VALUES" | jq -r '.POSTGRES_ENTRA_ADMIN_NAME // empty')
+POSTGRES_ENTRA_ADMIN_TYPE=$(echo "$VALUES" | jq -r '.POSTGRES_ENTRA_ADMIN_TYPE // "User"')
+MANAGED_IDENTITY_NAME=$(echo "$VALUES" | jq -r '.MANAGED_IDENTITY_NAME // empty')
 
-if [ -z "$ENV_NAME" ] || [ -z "$RESOURCE_GROUP" ] || [ -z "$POSTGRES_FQDN" ]; then
+if [ -z "$ENV_NAME" ] || [ -z "$RESOURCE_GROUP" ] || [ -z "$POSTGRES_FQDN" ] || [ -z "$POSTGRES_SERVER_NAME" ]; then
   echo "Error: Required environment variables not found"
   exit 1
 fi
 
-if [ -z "$POSTGRES_ADMIN_PASSWORD" ] || [ -z "$TODO_DB_PASSWORD" ]; then
-  echo "Error: Database passwords are missing. Ensure preprovision set POSTGRES_ADMIN_PASSWORD and TODO_DB_PASSWORD."
+if [ -z "$POSTGRES_ENTRA_ADMIN_OBJECT_ID" ] || [ -z "$POSTGRES_ENTRA_ADMIN_NAME" ] || [ -z "$MANAGED_IDENTITY_NAME" ]; then
+  echo "Error: Missing PostgreSQL Entra admin or managed identity metadata in azd env."
   exit 1
 fi
 
 echo "Environment: $ENV_NAME"
 echo "Resource Group: $RESOURCE_GROUP"
+echo "PostgreSQL Server: $POSTGRES_SERVER_NAME"
 echo "PostgreSQL FQDN: $POSTGRES_FQDN"
 echo "Database: $POSTGRES_DB"
-echo "Admin User: $POSTGRES_ADMIN_USER"
-echo "App User: $TODO_DB_USER"
+echo "Entra Admin: $POSTGRES_ENTRA_ADMIN_NAME ($POSTGRES_ENTRA_ADMIN_TYPE)"
+echo "Runtime Principal: $MANAGED_IDENTITY_NAME"
 
 echo ""
 echo "Ensuring psql is available..."
@@ -45,30 +47,48 @@ if ! command -v psql >/dev/null 2>&1; then
   exit 1
 fi
 
-export PGPASSWORD="$POSTGRES_ADMIN_PASSWORD"
+echo "Ensuring PostgreSQL Entra admin is configured..."
+EXISTING_ADMIN=$(az postgres flexible-server microsoft-entra-admin list \
+  --resource-group "$RESOURCE_GROUP" \
+  --server-name "$POSTGRES_SERVER_NAME" \
+  --query "[?objectId=='$POSTGRES_ENTRA_ADMIN_OBJECT_ID'] | [0].objectId" \
+  -o tsv 2>/dev/null || true)
 
-echo "Creating or updating application user and grants..."
-psql "host=$POSTGRES_FQDN dbname=$POSTGRES_DB user=$POSTGRES_ADMIN_USER sslmode=require" \
+if [ -z "$EXISTING_ADMIN" ]; then
+  az postgres flexible-server microsoft-entra-admin create \
+    --resource-group "$RESOURCE_GROUP" \
+    --server-name "$POSTGRES_SERVER_NAME" \
+    --display-name "$POSTGRES_ENTRA_ADMIN_NAME" \
+    --object-id "$POSTGRES_ENTRA_ADMIN_OBJECT_ID" \
+    --type "$POSTGRES_ENTRA_ADMIN_TYPE" \
+    >/dev/null
+fi
+
+POSTGRES_AAD_TOKEN=$(az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv)
+export PGPASSWORD="$POSTGRES_AAD_TOKEN"
+
+echo "Creating or updating runtime principal grants..."
+psql "host=$POSTGRES_FQDN dbname=$POSTGRES_DB user=$POSTGRES_ENTRA_ADMIN_NAME sslmode=require" \
   -v ON_ERROR_STOP=1 <<EOF
 DO \$\$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '$TODO_DB_USER') THEN
-    CREATE ROLE "$TODO_DB_USER" WITH LOGIN PASSWORD '$TODO_DB_PASSWORD';
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '$MANAGED_IDENTITY_NAME') THEN
+    PERFORM pgaadauth_create_principal('$MANAGED_IDENTITY_NAME', false, false);
   END IF;
 END
 \$\$;
 
-GRANT CONNECT ON DATABASE $POSTGRES_DB TO "$TODO_DB_USER";
-GRANT USAGE ON SCHEMA public TO "$TODO_DB_USER";
-GRANT CREATE ON SCHEMA public TO "$TODO_DB_USER";
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "$TODO_DB_USER";
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO "$TODO_DB_USER";
-ALTER DEFAULT PRIVILEGES FOR ROLE "$POSTGRES_ADMIN_USER" IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "$TODO_DB_USER";
-ALTER DEFAULT PRIVILEGES FOR ROLE "$POSTGRES_ADMIN_USER" IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO "$TODO_DB_USER";
+GRANT CONNECT ON DATABASE $POSTGRES_DB TO "$MANAGED_IDENTITY_NAME";
+GRANT USAGE ON SCHEMA public TO "$MANAGED_IDENTITY_NAME";
+GRANT CREATE ON SCHEMA public TO "$MANAGED_IDENTITY_NAME";
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "$MANAGED_IDENTITY_NAME";
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO "$MANAGED_IDENTITY_NAME";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "$MANAGED_IDENTITY_NAME";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO "$MANAGED_IDENTITY_NAME";
 EOF
 
 echo ""
-echo "✓ Application user configured"
+echo "✓ Runtime Entra principal configured"
 echo "=========================================="
 echo "Post-Provision Hook: Complete"
 echo "=========================================="

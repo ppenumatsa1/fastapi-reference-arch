@@ -22,11 +22,13 @@ class Settings(BaseSettings):
     app_debug: bool = True
 
     # Database connection settings
+    db_auth_mode: str = Field(default="password", alias="DB_AUTH_MODE")
     database_host: str = "postgres"
     database_port: int = 5432
     database_user: str = "todo_user"
     database_password: str = "todo_pass"
     database_name: str = "todo_db"
+    azure_client_id: str | None = Field(default=None, alias="AZURE_CLIENT_ID")
     database_echo: bool = False
     database_pool_size: int = Field(default=5, alias="DATABASE_POOL_SIZE")
     database_max_overflow: int = Field(default=10, alias="DATABASE_MAX_OVERFLOW")
@@ -68,6 +70,12 @@ class Settings(BaseSettings):
         if self.database_url_override:
             return self.database_url_override
 
+        if self.use_entra_db_auth:
+            return (
+                f"postgresql+psycopg2://{self.database_user}@"
+                f"{self.database_host}:{self.database_port}/{self.database_name}"
+            )
+
         return (
             f"postgresql+psycopg2://{self.database_user}:{self.database_password}"
             f"@{self.database_host}:{self.database_port}/{self.database_name}"
@@ -79,10 +87,20 @@ class Settings(BaseSettings):
         if self.async_database_url_override:
             return self.async_database_url_override
 
+        if self.use_entra_db_auth:
+            return (
+                f"postgresql+asyncpg://{self.database_user}@"
+                f"{self.database_host}:{self.database_port}/{self.database_name}"
+            )
+
         return (
             f"postgresql+asyncpg://{self.database_user}:{self.database_password}"
             f"@{self.database_host}:{self.database_port}/{self.database_name}"
         )
+
+    @property
+    def use_entra_db_auth(self) -> bool:
+        return self.db_auth_mode.lower() in {"aad", "entra"}
 
 
 @lru_cache

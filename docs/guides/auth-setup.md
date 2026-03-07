@@ -7,6 +7,10 @@ This guide explains how to run and verify app-only authentication for the TODO A
 Use these in `.env` (local defaults shown):
 
 ```env
+# Database auth mode
+DB_AUTH_MODE=password
+AZURE_CLIENT_ID=
+
 # Auth
 REQUIRE_AUTH=false
 ENTRA_TENANT_ID=
@@ -24,8 +28,14 @@ ENABLE_TELEMETRY=false
 
 Recommended defaults:
 
-1. Local development: `REQUIRE_AUTH=false`, `ENABLE_TELEMETRY=false`
-2. Remote/hosted verification: `REQUIRE_AUTH=true`, `ENABLE_TELEMETRY=true`
+1. Local development: `DB_AUTH_MODE=password`, `REQUIRE_AUTH=false`, `ENABLE_TELEMETRY=false`
+2. Remote/hosted verification: `DB_AUTH_MODE=aad`, `REQUIRE_AUTH=true`, `ENABLE_TELEMETRY=true`
+
+## PostgreSQL Entra Runtime Auth (Azure)
+
+1. Azure runtime uses the existing Container Apps UAMI to authenticate to PostgreSQL.
+2. The app acquires tokens for scope `https://ossrdbms-aad.database.windows.net/.default`.
+3. `DATABASE_PASSWORD` is not required in Azure when `DB_AUTH_MODE=aad`.
 
 ## Source Of Truth For Secrets
 

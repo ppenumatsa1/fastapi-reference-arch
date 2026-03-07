@@ -19,14 +19,47 @@ fi
 
 echo "Running database migrations..."
 
+DB_AUTH_MODE="${DB_AUTH_MODE:-password}"
 DATABASE_USER="${DATABASE_USER:-${TODO_DB_USER:-todo_user}}"
 DATABASE_PASSWORD="${DATABASE_PASSWORD:-${TODO_DB_PASSWORD:-}}"
 DATABASE_HOST="${DATABASE_HOST:-${POSTGRES_FQDN:-localhost}}"
 DATABASE_PORT="${DATABASE_PORT:-5432}"
 DATABASE_NAME="${DATABASE_NAME:-${POSTGRES_DB:-todo_db}}"
+POSTGRES_ENTRA_ADMIN_NAME="${POSTGRES_ENTRA_ADMIN_NAME:-}"
 
-# Attempt to pull password from Key Vault if not provided
-if [ -z "$DATABASE_PASSWORD" ]; then
+if command -v azd >/dev/null 2>&1; then
+  AZD_VALUES_JSON=$(azd env get-values --output json 2>/dev/null || echo '{}')
+  if [ "$DB_AUTH_MODE" = "password" ]; then
+    DB_AUTH_MODE=$(echo "$AZD_VALUES_JSON" | jq -r '.DB_AUTH_MODE // "password"')
+  fi
+  if [ -z "$POSTGRES_ENTRA_ADMIN_NAME" ]; then
+    POSTGRES_ENTRA_ADMIN_NAME=$(echo "$AZD_VALUES_JSON" | jq -r '.POSTGRES_ENTRA_ADMIN_NAME // empty')
+  fi
+fi
+
+if [ "$DB_AUTH_MODE" = "aad" ] || [ "$DB_AUTH_MODE" = "entra" ]; then
+  if [ "$DATABASE_HOST" = "postgres" ] || [ "$DATABASE_HOST" = "localhost" ]; then
+    DB_AUTH_MODE="password"
+  else
+    if [ -z "$POSTGRES_ENTRA_ADMIN_NAME" ] && command -v azd >/dev/null 2>&1; then
+      POSTGRES_ENTRA_ADMIN_NAME=$(azd env get-values --output json 2>/dev/null | jq -r '.POSTGRES_ENTRA_ADMIN_NAME // empty')
+    fi
+
+    if [ -n "$POSTGRES_ENTRA_ADMIN_NAME" ]; then
+      DATABASE_USER="$POSTGRES_ENTRA_ADMIN_NAME"
+    fi
+
+    if ! command -v az >/dev/null 2>&1; then
+      echo "Error: az CLI is required for Entra database token acquisition."
+      exit 1
+    fi
+
+    DATABASE_PASSWORD=$(az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv)
+  fi
+fi
+
+# Attempt to pull password from Key Vault only for password mode
+if [ "$DB_AUTH_MODE" = "password" ] && [ -z "$DATABASE_PASSWORD" ]; then
   VAULT_NAME="${AZURE_KEY_VAULT_NAME:-${KEYVAULT_NAME:-}}"
   if [ -n "$VAULT_NAME" ]; then
     echo "Fetching database password from Key Vault $VAULT_NAME..."
@@ -39,12 +72,12 @@ if [ -z "$DATABASE_PASSWORD" ]; then
 fi
 
 # Local dev fallback: use compose defaults when pointing at the bundled postgres service
-if [ -z "$DATABASE_PASSWORD" ] && { [ "$DATABASE_HOST" = "postgres" ] || [ "$DATABASE_HOST" = "localhost" ]; }; then
+if [ "$DB_AUTH_MODE" = "password" ] && [ -z "$DATABASE_PASSWORD" ] && { [ "$DATABASE_HOST" = "postgres" ] || [ "$DATABASE_HOST" = "localhost" ]; }; then
   DATABASE_PASSWORD="todo_pass"
 fi
 
 if [ -z "$DATABASE_PASSWORD" ]; then
-  echo "Error: DATABASE_PASSWORD (or TODO_DB_PASSWORD) is required."
+  echo "Error: database credential token/password could not be resolved for auth mode '$DB_AUTH_MODE'."
   exit 1
 fi
 

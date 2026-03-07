@@ -19,5 +19,5 @@ resource acrPullAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' 
   }
 }
 
-// Note: PostgreSQL access uses password-based authentication; managed identity is not used for database logins.
-// Database-level permissions are managed within PostgreSQL itself, not via Azure RBAC.
+// Note: PostgreSQL data-plane access uses Entra auth and database grants for the runtime managed identity.
+// Azure RBAC role assignments here are only for Azure control-plane resources (for example ACR pull).
