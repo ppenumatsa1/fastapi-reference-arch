@@ -23,21 +23,12 @@ param backupRetentionDays int = 7
 param geoRedundantBackup string = 'Disabled'
 @description('Admin login used for password-based access.')
 param administratorLogin string = 'pgadmin'
-@secure()
-@description('Admin password supplied via azd secret or pipeline variable. Not stored in source control.')
-param administratorPassword string
 @description('Enable or disable public network access (Enabled to use firewall allow lists).')
 @allowed([
   'Enabled'
   'Disabled'
 ])
 param publicNetworkAccess string = 'Enabled'
-@description('Database authentication mode. Use aad for Entra auth and password disablement.')
-@allowed([
-  'password'
-  'aad'
-])
-param authMode string = 'aad'
 
 var serverName = 'azpgs${resourceToken}'
 
@@ -54,7 +45,6 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' =
   }
   properties: {
     administratorLogin: administratorLogin
-    administratorLoginPassword: administratorPassword
     version: serverVersion
     backup: {
       backupRetentionDays: backupRetentionDays
@@ -70,8 +60,8 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' =
       mode: 'Disabled'
     }
     authConfig: {
-      activeDirectoryAuth: authMode == 'aad' ? 'Enabled' : 'Disabled'
-      passwordAuth: authMode == 'aad' ? 'Disabled' : 'Enabled'
+      activeDirectoryAuth: 'Enabled'
+      passwordAuth: 'Disabled'
     }
   }
 }

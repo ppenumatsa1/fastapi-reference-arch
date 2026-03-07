@@ -88,13 +88,13 @@ def validate_access_token(token: str, settings: Settings) -> AuthContext:
             leeway=settings.entra_clock_skew_seconds,
         )
     except jwt.InvalidTokenError as exc:
-        raise AuthenticationError("Invalid access token") from exc
+        raise AuthenticationError("Invalid access token", cause=exc) from exc
 
     issuer = str(claims.get("iss", ""))
     if issuer not in _allowed_issuers(settings):
         raise AuthenticationError("Invalid token issuer")
 
-    client_app_id = str(claims.get("appid", "")).strip()
+    client_app_id = str(claims.get("appid") or claims.get("azp") or "").strip()
     if not client_app_id:
         raise AuthenticationError("Token missing app identity")
 
@@ -137,7 +137,14 @@ def _allowed_issuers(settings: Settings) -> set[str]:
 
 def _allowed_audiences(settings: Settings) -> list[str]:
     audience = settings.entra_api_audience
-    return [audience] if audience else []
+    if not audience:
+        return []
+
+    audiences = [audience]
+    if audience.startswith("api://"):
+        audiences.append(audience.removeprefix("api://"))
+
+    return audiences
 
 
 def _normalize_roles(raw_roles: object) -> list[str]:

@@ -11,9 +11,6 @@
     "serviceName": {
       "value": "api"
     },
-    "postgresAdminPassword": {
-      "value": "${POSTGRES_ADMIN_PASSWORD}"
-    },
     "environmentVariables": {
       "value": [
         {

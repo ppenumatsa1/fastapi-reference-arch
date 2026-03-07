@@ -24,12 +24,15 @@ app = FastAPI(title=settings.app_name, debug=settings.app_debug)
 def _configure_exception_handlers(fastapi_app: FastAPI) -> None:
     @fastapi_app.exception_handler(AppError)
     async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
+        cause = exc.cause
         logger.warning(
             "Handled application error",
             extra={
                 "path": request.url.path,
                 "code": exc.code,
                 "status": exc.status_code,
+                "cause_type": type(cause).__name__ if cause else None,
+                "cause_message": str(cause) if cause else None,
             },
         )
         return JSONResponse(

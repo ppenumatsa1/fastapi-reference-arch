@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     database_pool_timeout: int = Field(default=30, alias="DATABASE_POOL_TIMEOUT")
     database_pool_recycle: int = Field(default=1800, alias="DATABASE_POOL_RECYCLE")
     database_pool_pre_ping: bool = Field(default=True, alias="DATABASE_POOL_PRE_PING")
+    entra_db_token_lifetime_seconds: int = Field(
+        default=3600,
+        alias="ENTRA_DB_TOKEN_LIFETIME_SECONDS",
+    )
+    entra_db_token_refresh_skew_seconds: int = Field(
+        default=300,
+        alias="ENTRA_DB_TOKEN_REFRESH_SKEW_SECONDS",
+    )
     database_url_override: str | None = Field(default=None, alias="DATABASE_URL")
     async_database_url_override: str | None = Field(
         default=None,

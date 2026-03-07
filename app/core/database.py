@@ -5,13 +5,14 @@ from collections.abc import AsyncIterator
 from threading import Lock
 
 from sqlalchemy import event
+from sqlalchemy import exc as sa_exc
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
 from app.core.config import get_settings
 
 POSTGRES_ENTRA_SCOPE = "https://ossrdbms-aad.database.windows.net/.default"
-TOKEN_REFRESH_SKEW_SECONDS = 300
+CONNECTION_EXPIRY_GUARD_SECONDS = 60
 
 
 class Base(DeclarativeBase):
@@ -69,17 +70,29 @@ class _PostgresTokenProvider:
         self._token: str | None = None
         self._expires_on: float = 0
         self._lock = Lock()
+        self._refresh_skew_seconds = max(
+            30, settings.entra_db_token_refresh_skew_seconds
+        )
 
-    def get(self) -> str:
+    def get_token(self) -> tuple[str, float]:
         now = time.time()
         with self._lock:
-            if self._token and now < self._expires_on - TOKEN_REFRESH_SKEW_SECONDS:
-                return self._token
+            if self._token and now < self._expires_on - self._refresh_skew_seconds:
+                return self._token, self._expires_on
 
             token = self._credential.get_token(POSTGRES_ENTRA_SCOPE)
             self._token = token.token
             self._expires_on = float(token.expires_on)
-            return self._token
+            return self._token, self._expires_on
+
+
+def _safe_entra_pool_recycle_seconds() -> int:
+    """Clamp pool recycle so pooled connections retire before token expiry."""
+    settings = get_settings()
+    token_lifetime = max(120, settings.entra_db_token_lifetime_seconds)
+    refresh_skew = max(30, settings.entra_db_token_refresh_skew_seconds)
+    recycle_ceiling = max(60, token_lifetime - refresh_skew)
+    return min(settings.database_pool_recycle, recycle_ceiling)
 
 
 def _create_engine_with_entra():
@@ -96,7 +109,7 @@ def _create_engine_with_entra():
             "pool_size": settings.database_pool_size,
             "max_overflow": settings.database_max_overflow,
             "pool_timeout": settings.database_pool_timeout,
-            "pool_recycle": settings.database_pool_recycle,
+            "pool_recycle": _safe_entra_pool_recycle_seconds(),
             "pool_pre_ping": settings.database_pool_pre_ping,
         }
     )
@@ -110,7 +123,21 @@ def _create_engine_with_entra():
 
     @event.listens_for(engine.sync_engine, "do_connect")
     def _inject_access_token(dialect, conn_rec, cargs, cparams):  # noqa: ARG001
-        cparams["password"] = token_provider.get()
+        token, expires_on = token_provider.get_token()
+        cparams["password"] = token
+        conn_rec.info["entra_token_expires_on"] = expires_on
+
+    @event.listens_for(engine.sync_engine, "checkout")
+    def _invalidate_near_expiry_connections(
+        dbapi_conn, conn_rec, conn_proxy
+    ):  # noqa: ARG001
+        expires_on = float(conn_rec.info.get("entra_token_expires_on", 0))
+        now = time.time()
+        if now >= expires_on - CONNECTION_EXPIRY_GUARD_SECONDS:
+            conn_rec.invalidate()
+            raise sa_exc.DisconnectionError(
+                "Discarding pooled connection with near-expiry Entra token"
+            )
 
     return engine
 

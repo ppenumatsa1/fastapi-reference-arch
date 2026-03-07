@@ -40,7 +40,7 @@ az account set --subscription <subscription-id>
 ## Parameters & Conventions
 
 - `environmentName` and `location` are mandatory; azd injects them as `AZURE_ENV_NAME` and `AZURE_LOCATION`.
-- `postgresAdminPassword` is marked `@secure()`. Store it as an azd secret: `azd env set POSTGRES_ADMIN_PASSWORD '<strong-password>' --secret`.
+- PostgreSQL is configured for Microsoft Entra authentication in Azure (`activeDirectoryAuth=Enabled`, `passwordAuth=Disabled`).
 - PostgreSQL firewall is preconfigured to allow all IPv4 addresses for development convenience. Lock this down in production via the portal or by adjusting the firewall rule in `modules/postgres.bicep`.
 - `serviceName` defaults to `api` and tags the Container App with `azd-service-name`.
 - Container Apps image is parameterized via `imageRepository`, `imageTag`, and optional full `image` (empty by default; repo/tag defaults to `fastapi-reference-arch/api-dev:latest`). Override in CI/CD with your built image tag (e.g., git SHA) by setting `image` or `imageTag`/`imageRepository`.
@@ -63,19 +63,18 @@ azd provision
 
 That's it! The preprovision hook automatically:
 
-- Generates secure passwords for the PostgreSQL admin and application user
+- Ensures required Entra identities and app registrations are available
 - Sets required environment variables (location, resource group, database credentials)
 - Configures Bicep parameters
 
 ### What Happens Behind the Scenes
 
 1. **Pre-provision Hook** (`infra/hooks/preprovision.sh`):
-
    - Sets environment variables:
      - `AZURE_LOCATION` (default: canadacentral)
      - `AZURE_RESOURCE_GROUP` (rg-<env-name>)
-     - `POSTGRES_ADMIN_PASSWORD` (auto-generated if not set)
-     - `TODO_DB_USER` / `TODO_DB_PASSWORD` (auto-generated if not set)
+   - `POSTGRES_ENTRA_ADMIN_OBJECT_ID` / `POSTGRES_ENTRA_ADMIN_NAME` (required)
+   - `DB_AUTH_MODE=aad` for runtime container configuration
 
 2. **Bicep Deployment**:
    - Reads values from azd environment variables
@@ -93,8 +92,9 @@ azd env new <env-name>
 # Set custom location (optional, defaults to canadacentral)
 azd env set AZURE_LOCATION eastus
 
-# Set custom password (optional, auto-generated if not provided)
-azd env set POSTGRES_ADMIN_PASSWORD '<strong-password>' --no-prompt
+# Set PostgreSQL Entra admin identity (required)
+azd env set POSTGRES_ENTRA_ADMIN_OBJECT_ID '<entra-object-id>' --no-prompt
+azd env set POSTGRES_ENTRA_ADMIN_NAME '<entra-display-name>' --no-prompt
 
 # Now provision
 azd provision
@@ -107,7 +107,7 @@ All parameters are now managed through `azd env` variables or defaults:
 - `environmentName`: automatically from `AZURE_ENV_NAME`
 - `location`: from `AZURE_LOCATION` (default: canadacentral)
 - `serviceName`: defaults to `api`
-- `postgresAdminPassword`: auto-generated or from environment
+- PostgreSQL auth mode in Azure: AAD-only
 
 The `main.parameters.json` file uses variable substitution - no manual editing required
 
@@ -134,17 +134,16 @@ After successful provisioning, azd stores these outputs (view with `azd env get-
 - `CONTAINER_APP_FQDN`: Public FQDN of the Container App
 - `POSTGRES_FQDN`: Fully qualified domain name of the PostgreSQL server
 
-## App Configuration (Azure password mode)
+## App Configuration (Azure AAD mode)
 
-Container Apps injects these application settings from azd/Key Vault:
+Container Apps injects these application settings from azd outputs:
 
 ```env
-DB_AUTH_MODE=password
+DB_AUTH_MODE=aad
 DATABASE_HOST=<postgres-fqdn>
 DATABASE_PORT=5432
 DATABASE_NAME=postgres
-DATABASE_USER=todo_user
-DATABASE_PASSWORD=<in-Key-Vault-or-azd-env>
+DATABASE_USER=<managed-identity-name>
 AZURE_CLIENT_ID=<managed-identity-client-id>
 APPLICATIONINSIGHTS_CONNECTION_STRING=<connection-string>
 APP_ENV=<environment-name>
@@ -156,4 +155,4 @@ Use these in subsequent deployment steps or CI/CD pipelines.
 ## Next Steps
 
 - `azd up` now runs end-to-end (provision + deploy + migrations) using hooks; no GitHub Actions workflow is required.
-- For production, tighten the PostgreSQL firewall (replace the allow-all rule) and set per-environment secrets via `azd env set`.
+- For production, tighten the PostgreSQL firewall (replace the allow-all rule) and set per-environment Entra values via `azd env set`.
