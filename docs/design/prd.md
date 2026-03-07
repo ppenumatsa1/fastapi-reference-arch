@@ -22,9 +22,12 @@ Provide a reference-grade TODO management API that demonstrates FastAPI best pra
 - Codebase must pass linting (ruff) and formatting (black/isort) gates.
 - Automated tests must cover core CRUD behavior and health checks.
 - Infrastructure definitions must remain reproducible via Bicep templates under `infra/bicep/`.
+- Repository write operations must rollback transactions on commit failures to keep session state healthy.
+- Database engine pool settings must be configurable via environment variables for production tuning.
 
 ## Out of Scope
 
 - Authentication/Authorization (reserved for Entra integration later).
-- Private Network Setup for IAC
+- API rate limiting and abuse protection policies (planned for a later hardening phase).
+- Private network/firewall hardening for IaC and PostgreSQL public exposure controls (planned for later hardening).
 - Multi-tenant partitioning.

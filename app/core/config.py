@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     database_password: str = "todo_pass"
     database_name: str = "todo_db"
     database_echo: bool = False
+    database_pool_size: int = Field(default=5, alias="DATABASE_POOL_SIZE")
+    database_max_overflow: int = Field(default=10, alias="DATABASE_MAX_OVERFLOW")
+    database_pool_timeout: int = Field(default=30, alias="DATABASE_POOL_TIMEOUT")
+    database_pool_recycle: int = Field(default=1800, alias="DATABASE_POOL_RECYCLE")
+    database_pool_pre_ping: bool = Field(default=True, alias="DATABASE_POOL_PRE_PING")
     database_url_override: str | None = Field(default=None, alias="DATABASE_URL")
     async_database_url_override: str | None = Field(
         default=None,

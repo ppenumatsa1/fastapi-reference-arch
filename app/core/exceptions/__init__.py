@@ -5,6 +5,13 @@ from app.core.exceptions.app_exceptions import (
     BadRequestError,
     ConflictError,
     NotFoundError,
+    PersistenceError,
 )
 
-__all__ = ["AppError", "BadRequestError", "ConflictError", "NotFoundError"]
+__all__ = [
+    "AppError",
+    "BadRequestError",
+    "ConflictError",
+    "NotFoundError",
+    "PersistenceError",
+]

@@ -3,8 +3,10 @@
 from collections.abc import Sequence
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import ConflictError, PersistenceError
 from app.core.logging.logger import get_logger
 from app.modules.todos.model import Todo
 from app.modules.todos.schemas import TodoCreate, TodoUpdate
@@ -34,8 +36,19 @@ class TodoRepository:
     async def create(self, payload: TodoCreate) -> Todo:
         todo = Todo(**payload.model_dump())
         self.session.add(todo)
-        await self.session.commit()
-        await self.session.refresh(todo)
+
+        try:
+            await self.session.commit()
+            await self.session.refresh(todo)
+        except IntegrityError as exc:
+            await self.session.rollback()
+            logger.warning("Create todo failed due to integrity error")
+            raise ConflictError("Todo create conflict", cause=exc) from exc
+        except SQLAlchemyError as exc:
+            await self.session.rollback()
+            logger.exception("Create todo failed due to database error")
+            raise PersistenceError("Failed to create todo", cause=exc) from exc
+
         logger.info("Created todo", extra={"todo_id": todo.id, "title": todo.title})
         return todo
 
@@ -43,12 +56,30 @@ class TodoRepository:
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(todo, key, value)
         self.session.add(todo)
-        await self.session.commit()
-        await self.session.refresh(todo)
+
+        try:
+            await self.session.commit()
+            await self.session.refresh(todo)
+        except IntegrityError as exc:
+            await self.session.rollback()
+            logger.warning("Update todo failed due to integrity error")
+            raise ConflictError("Todo update conflict", cause=exc) from exc
+        except SQLAlchemyError as exc:
+            await self.session.rollback()
+            logger.exception("Update todo failed due to database error")
+            raise PersistenceError("Failed to update todo", cause=exc) from exc
+
         logger.info("Updated todo", extra={"todo_id": todo.id})
         return todo
 
     async def delete(self, todo: Todo) -> None:
         await self.session.delete(todo)
-        await self.session.commit()
+
+        try:
+            await self.session.commit()
+        except SQLAlchemyError as exc:
+            await self.session.rollback()
+            logger.exception("Delete todo failed due to database error")
+            raise PersistenceError("Failed to delete todo", cause=exc) from exc
+
         logger.info("Deleted todo", extra={"todo_id": todo.id})

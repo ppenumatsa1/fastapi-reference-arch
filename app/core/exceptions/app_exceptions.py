@@ -42,3 +42,10 @@ class ConflictError(AppError):
 
     status_code = 409
     code = "conflict"
+
+
+class PersistenceError(AppError):
+    """Raised when persistence operations fail unexpectedly."""
+
+    status_code = 500
+    code = "persistence_error"

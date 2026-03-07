@@ -147,16 +147,7 @@ Runs automated tests to verify health, DB reads, and writes. The script defaults
 - Choose an existing resource group or create a new one
 - Pick an Azure region (e.g., Central US)
 
-What azd hooks do (summary):
-
-- Pre-provision ([infra/hooks/preprovision.sh](infra/hooks/preprovision.sh)): sets location/resource group defaults; generates Postgres admin and `todo_user` passwords into the azd env.
-- Bicep ([infra/bicep](infra/bicep)): provisions Container Apps, PostgreSQL Flexible Server, ACR, identities, and wiring.
-- Post-provision ([infra/hooks/postprovision.sh](infra/hooks/postprovision.sh)): creates `todo_user`, grants CONNECT/USAGE/CREATE and DML/sequence rights on `public`.
-- Post-deploy ([infra/scripts/run_migrations.sh](infra/scripts/run_migrations.sh)): builds DSNs from env/Key Vault, runs `alembic upgrade head`, then seeds sample todos (idempotent).
-
-Each deployment uses a unique image tag (`azd-deploy-<timestamp>`) for traceability and rollback capability.
-
-Network/firewall: PostgreSQL firewall allows all IPv4 by default for development. Lock down in production via [infra/bicep/modules/postgres.bicep](infra/bicep/modules/postgres.bicep). For deeper details, see [infra/bicep/README.md](infra/bicep/README.md).
+For infrastructure internals (Bicep modules, azd hooks, migration scripts, and hardening notes), see [infra/README.md](infra/README.md) and [infra/bicep/README.md](infra/bicep/README.md).
 
 ## Project Structure
 
@@ -176,22 +167,12 @@ See [docs/design/projectstructure.md](docs/design/projectstructure.md) for the f
 
 ## Telemetry
 
-Application Insights is wired for the API; it activates when `APPLICATIONINSIGHTS_CONNECTION_STRING` is set. OpenTelemetry captures FastAPI request spans, SQLAlchemy dependency spans, and application logs as traces.
+Application Insights is enabled when `APPLICATIONINSIGHTS_CONNECTION_STRING` is set. OpenTelemetry captures request spans, dependency spans, and traces.
 
-Current telemetry behavior:
+Observability references:
 
-- Request and dependency correlation is enabled via OpenTelemetry context propagation.
-- Correlation headers (`traceparent`, `x-correlation-id`) are set by middleware.
-- ASGI low-level `receive/send` noise is reduced in code-level telemetry setup.
-
-Kusto helpers live under `scripts/kusto/`:
-
-- `requests.kql`
-- `dependencies.kql`
-- `exceptions.kql`
-- `traces.kql`
-- `end-to-end-flow-by-operation.kql` (optional per-operation timeline)
-- `run-observability-suite.sh` (runs the 4 core queries)
+- Instrumentation details: [docs/design/instrument-flow.md](docs/design/instrument-flow.md)
+- Kusto queries and suite runner: [scripts/kusto](scripts/kusto)
 
 Run all core checks:
 
