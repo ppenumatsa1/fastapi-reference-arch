@@ -16,7 +16,6 @@ require_command() {
 require_command az
 require_command azd
 require_command jq
-require_command openssl
 
 retry() {
   local attempts="$1"
@@ -98,24 +97,12 @@ RESOURCE_GROUP="rg-$ENV_NAME"
 echo "Resource Group: $RESOURCE_GROUP"
 azd env set AZURE_RESOURCE_GROUP "$RESOURCE_GROUP"
 
-# Set admin user (aligns with password-only auth)
+# Set admin user metadata for server provisioning.
 POSTGRES_ADMIN_USER="${POSTGRES_ADMIN_USER:-pgadmin}"
 azd env set POSTGRES_ADMIN_USER "$POSTGRES_ADMIN_USER"
 
 echo ""
 echo "Note: Post-provision will configure PostgreSQL Entra principal grants for the runtime managed identity"
-
-# Generate secure PostgreSQL admin password if not already set
-if [ -z "$POSTGRES_ADMIN_PASSWORD" ]; then
-  echo ""
-  echo "Generating secure PostgreSQL admin password..."
-  POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
-  azd env set POSTGRES_ADMIN_PASSWORD "$POSTGRES_PASSWORD" --no-prompt
-  echo "PostgreSQL password generated and stored securely."
-else
-  echo ""
-  echo "Using existing PostgreSQL admin password from environment."
-fi
 
 POSTGRES_ENTRA_ADMIN_OBJECT_ID="${POSTGRES_ENTRA_ADMIN_OBJECT_ID:-}"
 POSTGRES_ENTRA_ADMIN_NAME="${POSTGRES_ENTRA_ADMIN_NAME:-}"
@@ -260,7 +247,6 @@ echo "=========================================="
 echo "Environment variables set:"
 echo "  - AZURE_LOCATION: $AZURE_LOCATION"
 echo "  - AZURE_RESOURCE_GROUP: $RESOURCE_GROUP"
-echo "  - POSTGRES_ADMIN_PASSWORD: *** (hidden)"
 echo "  - POSTGRES_ENTRA_ADMIN_NAME: $POSTGRES_ENTRA_ADMIN_NAME"
 echo "  - ENTRA_API_AUDIENCE: $API_AUDIENCE"
 echo "  - ENTRA_CLIENT_ID: $CLIENT_APP_ID"

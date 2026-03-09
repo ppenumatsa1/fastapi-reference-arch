@@ -86,6 +86,9 @@ curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 # Azure Developer CLI
 curl -fsSL https://aka.ms/install-azd.sh | bash
 
+# Docker (required by azd package/provision preview for this template)
+sudo apt-get update && sudo apt-get install -y docker.io
+
 # PostgreSQL client
 sudo apt-get update && sudo apt-get install -y postgresql-client
 
@@ -93,24 +96,6 @@ sudo apt-get update && sudo apt-get install -y postgresql-client
 python3 -m venv .venv
 source .venv/bin/activate
 pip install '.[dev]'
-```
-
-**Windows (PowerShell as Administrator):**
-
-```powershell
-# Azure CLI
-winget install Microsoft.AzureCLI
-
-# Azure Developer CLI
-winget install Microsoft.Azd
-
-# PostgreSQL client
-winget install PostgreSQL.PostgreSQL
-
-# Python venv + dependencies (pyproject.toml is the source of truth)
-py -3 -m venv .venv
-\.venv\Scripts\Activate.ps1
-pip install .[dev]
 ```
 
 **Deploy to Azure:**
@@ -121,6 +106,11 @@ python3 -m venv .venv   # or: py -3 -m venv .venv (Windows)
 source .venv/bin/activate  # or: .\.venv\Scripts\Activate.ps1 (Windows)
 pip install .[dev]
 azd env new <env-name>
+
+azd env new <env-name>
+
+azd provision --preview
+
 azd provision --preview
 azd up                  # provision + deploy + run migrations + seed
 # subsequent deploys
@@ -128,6 +118,7 @@ azd deploy
 ```
 
 **Note:** Python venv must be activated for `azd up` and `azd deploy` - the postdeploy hook runs Alembic migrations which requires Python dependencies.
+Also ensure Docker is installed/running before `azd provision --preview` or `azd up`.
 
 **Verify deployment:**
 
