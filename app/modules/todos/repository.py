@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import ConflictError, PersistenceError
+from app.core.exceptions import ConflictError, NotFoundError, PersistenceError
 from app.core.logging.logger import get_logger
 from app.modules.todos.model import Todo
 from app.modules.todos.schemas import TodoCreate, TodoUpdate
@@ -52,7 +52,13 @@ class TodoRepository:
         logger.info("Created todo", extra={"todo_id": todo.id, "title": todo.title})
         return todo
 
-    async def update(self, todo: Todo, payload: TodoUpdate) -> Todo:
+    async def update_by_id(self, todo_id: int, payload: TodoUpdate) -> Todo:
+        stmt = select(Todo).where(Todo.id == todo_id).with_for_update()
+        result = await self.session.execute(stmt)
+        todo = result.scalar_one_or_none()
+        if not todo:
+            raise NotFoundError("Todo not found")
+
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(todo, key, value)
         self.session.add(todo)
@@ -72,7 +78,13 @@ class TodoRepository:
         logger.info("Updated todo", extra={"todo_id": todo.id})
         return todo
 
-    async def delete(self, todo: Todo) -> None:
+    async def delete_by_id(self, todo_id: int) -> None:
+        stmt = select(Todo).where(Todo.id == todo_id).with_for_update()
+        result = await self.session.execute(stmt)
+        todo = result.scalar_one_or_none()
+        if not todo:
+            raise NotFoundError("Todo not found")
+
         await self.session.delete(todo)
 
         try:

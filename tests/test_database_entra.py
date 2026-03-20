@@ -1,3 +1,4 @@
+import asyncio
 import sys
 import time
 from types import SimpleNamespace
@@ -179,3 +180,73 @@ def test_engine_events_inject_token_and_invalidate_stale_checkout(
     with pytest.raises(sa_exc.DisconnectionError):
         callbacks["checkout"](None, conn_rec, None)
     assert conn_rec.invalidated is True
+
+
+@pytest.mark.asyncio
+async def test_checkout_invalidates_near_expiry_connections_concurrently(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    callbacks: dict[str, object] = {}
+
+    class _EngineStub:
+        def __init__(self):
+            self.sync_engine = object()
+
+    engine = _EngineStub()
+
+    class _ProviderStub:
+        def get_token(self) -> tuple[str, float]:
+            return "entra-token", time.time() + 900
+
+    def fake_listens_for(_target: object, event_name: str):
+        def decorator(fn):
+            callbacks[event_name] = fn
+            return fn
+
+        return decorator
+
+    def _fake_create_async_engine(*_args, **_kwargs):
+        return engine
+
+    monkeypatch.setattr(database.event, "listens_for", fake_listens_for)
+    monkeypatch.setattr(database, "create_async_engine", _fake_create_async_engine)
+    monkeypatch.setattr(database, "_PostgresTokenProvider", _ProviderStub)
+    monkeypatch.setattr(
+        database,
+        "get_settings",
+        lambda: Settings(
+            DB_AUTH_MODE="aad",
+            DATABASE_HOST="db.contoso.local",
+            DATABASE_NAME="postgres",
+            DATABASE_USER="uami-principal",
+            DATABASE_POOL_SIZE=5,
+            DATABASE_MAX_OVERFLOW=5,
+            DATABASE_POOL_TIMEOUT=20,
+            DATABASE_POOL_RECYCLE=7200,
+            ENTRA_DB_TOKEN_LIFETIME_SECONDS=3600,
+            ENTRA_DB_TOKEN_REFRESH_SKEW_SECONDS=300,
+        ),
+    )
+
+    database._create_engine_with_entra()
+    checkout = callbacks["checkout"]
+
+    async def attempt_checkout(expires_in_seconds: int) -> tuple[str, bool]:
+        conn_rec = _ConnRecStub()
+        conn_rec.info["entra_token_expires_on"] = time.time() + expires_in_seconds
+        await asyncio.sleep(0)
+        try:
+            checkout(None, conn_rec, None)
+            return ("ok", conn_rec.invalidated)
+        except sa_exc.DisconnectionError:
+            return ("disconnected", conn_rec.invalidated)
+
+    windows = [10, 20, 45, 120, 300, 900]
+    results = await asyncio.gather(*(attempt_checkout(v) for v in windows))
+
+    assert results[0] == ("disconnected", True)
+    assert results[1] == ("disconnected", True)
+    assert results[2] == ("disconnected", True)
+    assert results[3] == ("ok", False)
+    assert results[4] == ("ok", False)
+    assert results[5] == ("ok", False)

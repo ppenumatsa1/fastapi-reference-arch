@@ -6,6 +6,7 @@ import json
 from datetime import UTC, datetime
 from functools import lru_cache
 from urllib import error, request
+from urllib.parse import urlparse
 
 from opentelemetry import metrics, trace
 
@@ -108,6 +109,7 @@ def _send_custom_event(
     )
 
     try:
+        # Endpoint is validated from trusted App Insights connection string parsing.
         with request.urlopen(req, timeout=1.5):  # noqa: S310
             return
     except (error.URLError, TimeoutError, ValueError):
@@ -134,6 +136,19 @@ def _get_ai_track_endpoint_and_ikey() -> tuple[str | None, str | None]:
         "ingestionendpoint", "https://dc.services.visualstudio.com/"
     )
     endpoint = ingestion_endpoint.rstrip("/") + "/v2/track"
+    parsed = urlparse(endpoint)
+    host = parsed.hostname or ""
+    allowed_hosts = (
+        ".services.visualstudio.com",
+        ".applicationinsights.azure.com",
+        ".applicationinsights.us",
+        ".applicationinsights.azure.cn",
+    )
+    is_allowed = host == "dc.services.visualstudio.com" or any(
+        host.endswith(suffix) for suffix in allowed_hosts
+    )
+    if parsed.scheme != "https" or not is_allowed:
+        return None, None
     return endpoint, instrumentation_key
 
 

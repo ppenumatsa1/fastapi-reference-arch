@@ -93,8 +93,9 @@ class TodoService:
     async def update_todo(self, todo_id: int, payload: TodoUpdate) -> TodoRead:
         started = perf_counter()
         logger.info("Update todo invoked", extra={"todo_id": todo_id})
-        todo = await self.repository.get(todo_id)
-        if not todo:
+        try:
+            updated = await self.repository.update_by_id(todo_id, payload)
+        except NotFoundError:
             duration_ms = (perf_counter() - started) * 1000
             record_todo_operation_metric(
                 action="update", outcome="not_found", duration_ms=duration_ms
@@ -103,8 +104,7 @@ class TodoService:
                 "todo.update.not_found",
                 {"todo.action": "update", "todo.id": todo_id},
             )
-            raise NotFoundError("Todo not found")
-        updated = await self.repository.update(todo, payload)
+            raise
         logger.info("Update todo completed", extra={"todo_id": todo_id})
         duration_ms = (perf_counter() - started) * 1000
         record_todo_operation_metric(
@@ -119,8 +119,9 @@ class TodoService:
     async def delete_todo(self, todo_id: int) -> None:
         started = perf_counter()
         logger.info("Delete todo invoked", extra={"todo_id": todo_id})
-        todo = await self.repository.get(todo_id)
-        if not todo:
+        try:
+            await self.repository.delete_by_id(todo_id)
+        except NotFoundError:
             duration_ms = (perf_counter() - started) * 1000
             record_todo_operation_metric(
                 action="delete", outcome="not_found", duration_ms=duration_ms
@@ -129,8 +130,7 @@ class TodoService:
                 "todo.delete.not_found",
                 {"todo.action": "delete", "todo.id": todo_id},
             )
-            raise NotFoundError("Todo not found")
-        await self.repository.delete(todo)
+            raise
         logger.info("Delete todo completed", extra={"todo_id": todo_id})
         duration_ms = (perf_counter() - started) * 1000
         record_todo_operation_metric(

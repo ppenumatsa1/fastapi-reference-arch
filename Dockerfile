@@ -32,7 +32,6 @@ COPY --from=builder /install /usr/local
 COPY app ./app
 COPY alembic ./alembic
 COPY alembic.ini ./alembic.ini
-COPY .env.example ./.env
 
 EXPOSE 8000
 
