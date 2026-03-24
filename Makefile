@@ -2,8 +2,9 @@ SHELL := /bin/bash
 COMPOSE ?= docker compose
 COMPOSE_FILE ?= docker-compose.yml
 PYTHON ?= python3
+PORT ?= 8001
 
-.PHONY: help setup deps precommit migrate seed up up-build down lint format test
+.PHONY: help setup deps precommit migrate seed up up-build down lint format test run
 
 help: ## Display available targets
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -44,3 +45,6 @@ format: ## Run isort followed by Black
 
 test: ## Execute pytest suite
 	./scripts/test.sh
+
+run: ## Run app locally
+	$(PYTHON) -m uvicorn app.main:app --reload --port $(PORT)
