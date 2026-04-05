@@ -5,7 +5,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.api.v1.routers import todos as todos_router
+from app.api.v1.routers import users as users_router
 from app.core.config import get_settings
 from app.core.exceptions import AppError
 from app.core.logging.logger import get_logger
@@ -13,7 +13,7 @@ from app.core.middleware.correlation import CorrelationIdMiddleware
 from app.core.observability.telemetry import instrument_app, setup_telemetry
 
 settings = get_settings()
-logger = get_logger("todo_api.app")
+logger = get_logger("user_api.app")
 
 # Initialize telemetry before creating the app
 setup_telemetry()
@@ -80,7 +80,7 @@ app.add_middleware(CorrelationIdMiddleware)
 instrument_app(app)
 
 api_router = APIRouter()
-api_router.include_router(todos_router.router, prefix="/todos", tags=["todos"])
+api_router.include_router(users_router.router, prefix="/users", tags=["users"])
 app.include_router(api_router, prefix=settings.api_prefix)
 
 

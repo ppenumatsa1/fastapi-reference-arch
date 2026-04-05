@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 from typing import Any
 
-_LOGGER_NAME = "todo_api"
+_LOGGER_NAME = "user_api"
 _RESERVED_RECORD_FIELDS = {
     "args",
     "msg",

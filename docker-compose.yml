@@ -3,7 +3,7 @@ version: "3.9"
 services:
   api:
     build: .
-    container_name: todo_api
+    container_name: user_api
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
@@ -13,9 +13,9 @@ services:
       - APP_ENV=development
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
-      - DATABASE_USER=${DATABASE_USER:-todo_user}
-      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-todo_pass}
-      - DATABASE_NAME=${DATABASE_NAME:-todo_db}
+      - DATABASE_USER=${DATABASE_USER:-user_user}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-user_pass}
+      - DATABASE_NAME=${DATABASE_NAME:-user_db}
       - DATABASE_ECHO=${DATABASE_ECHO:-false}
       - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
     depends_on:
@@ -23,12 +23,12 @@ services:
 
   postgres:
     image: postgres:15
-    container_name: todo_postgres
+    container_name: user_postgres
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=${DATABASE_USER:-todo_user}
-      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-todo_pass}
-      - POSTGRES_DB=${DATABASE_NAME:-todo_db}
+      - POSTGRES_USER=${DATABASE_USER:-user_user}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-user_pass}
+      - POSTGRES_DB=${DATABASE_NAME:-user_db}
     volumes:
       - pg_data:/var/lib/postgresql/data
     ports:

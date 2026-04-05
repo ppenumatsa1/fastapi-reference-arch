@@ -22,9 +22,7 @@ description: Use for test strategy, pytest execution patterns, and test-safe cha
 - scripts/test.sh
 - scripts/lint.sh
 - tests/conftest.py
-- tests/test_todos.py
-- tests/test_auth.py
-- tests/test_token_validation.py
+- tests/test_users.py
 - tests/test_database_entra.py
 - pyproject.toml
 
@@ -38,7 +36,7 @@ description: Use for test strategy, pytest execution patterns, and test-safe cha
 ```bash
 source .venv/bin/activate
 make lint
-pytest tests/test_todos.py -q
+pytest tests/test_users.py -q
 make test
 ```
 
@@ -46,7 +44,7 @@ make test
 
 1. Prefer smallest failing test reproduction before broad refactors.
 2. Keep API behavior tests at HTTP boundary using test client fixtures from `tests/conftest.py`.
-3. Add or update tests when changing contracts (status codes, response shapes, auth requirements).
+3. Add or update tests when changing contracts (status codes and response shapes).
 4. Keep deterministic assertions; avoid sleep-based flakiness unless validating ingestion delays explicitly.
 5. Preserve SQLite-based test isolation in `tests/conftest.py` unless test intent requires alternate DB mode.
 

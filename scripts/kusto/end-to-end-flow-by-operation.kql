@@ -2,7 +2,7 @@ let windowStart = ago(30m);
 let latestOp = toscalar(
     requests
     | where timestamp >= windowStart
-    | where name has "/api/v1/todos/"
+    | where name has "/api/v1/users/"
     | top 1 by timestamp desc
     | project operation_Id
 );
@@ -67,8 +67,8 @@ union isfuzzy=true
         itemType = "customEvent",
         name,
         details = strcat(
-            "todo.action=", tostring(customDimensions["todo.action"]),
-            ", todo.id=", tostring(customDimensions["todo.id"])
+            "user.action=", tostring(customDimensions["user.action"]),
+            ", user.id=", tostring(customDimensions["user.id"])
         ),
         operation_Id
 ),
@@ -81,8 +81,8 @@ union isfuzzy=true
         name,
         details = strcat(
             "value=", tostring(value),
-            ", action=", tostring(customDimensions["todo.action"]),
-            ", outcome=", tostring(customDimensions["todo.outcome"])
+            ", action=", tostring(customDimensions["user.action"]),
+            ", outcome=", tostring(customDimensions["user.outcome"])
         ),
         operation_Id
 )

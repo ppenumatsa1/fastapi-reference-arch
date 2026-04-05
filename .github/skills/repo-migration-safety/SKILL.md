@@ -23,7 +23,7 @@ description: Use for Alembic migration planning, revision safety checks, and low
 - alembic/versions/
 - infra/scripts/run_migrations.sh
 - app/core/database.py
-- app/modules/todos/model.py
+- app/modules/users/model.py
 - tests/test_database_entra.py
 
 ## Standard Workflow

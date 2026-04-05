@@ -1,7 +1,7 @@
 let windowStart = ago(30m);
 requests
 | where timestamp >= windowStart
-| where name has "/health" or name has "/api/v1/todos"
+| where name has "/health" or name has "/api/v1/users"
 | summarize
     total_requests = count(),
     successful_requests = countif(tostring(success) == "True"),

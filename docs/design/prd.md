@@ -1,8 +1,8 @@
-# Product Requirements Document – TODO API
+# Product Requirements Document – User API
 
 ## Goal
 
-Provide a reference-grade TODO management API that demonstrates FastAPI best practices, CRUD workflows, and operational readiness for Azure deployments.
+Provide a reference-grade User management API that demonstrates FastAPI best practices, CRUD workflows, and operational readiness for Azure deployments.
 
 ## Users
 
@@ -11,7 +11,7 @@ Provide a reference-grade TODO management API that demonstrates FastAPI best pra
 
 ## Functional Requirements
 
-1. Create, read, update, delete TODO items.
+1. Create, read, update, delete User items.
 2. Persist data in PostgreSQL using SQLAlchemy ORM models.
 3. Provide health-check endpoint for monitoring.
 4. Support environment-based configuration via `.env`.
@@ -27,7 +27,7 @@ Provide a reference-grade TODO management API that demonstrates FastAPI best pra
 
 ## Out of Scope
 
-- Authentication/Authorization (reserved for Entra integration later).
+- Authentication/Authorization (intentionally excluded in this no-auth template variant).
 - API rate limiting and abuse protection policies (planned for a later hardening phase).
 - Private network/firewall hardening for IaC and PostgreSQL public exposure controls (planned for later hardening).
 - Multi-tenant partitioning.

@@ -25,7 +25,7 @@ precommit: ## Install git hooks for lint/format enforcement
 migrate: ## Apply the latest Alembic migrations
 	bash ./infra/scripts/run_migrations.sh
 
-seed: ## Seed the database with baseline TODO data
+seed: ## Seed the database with baseline user data
 	$(PYTHON) scripts/seed_data.py
 
 up: ## Start the Docker Compose stack (API + PostgreSQL)

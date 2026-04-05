@@ -63,7 +63,7 @@ Summary:
 | T1  | repo-testing          | repo-testing          | Y                | Y                  | Recommends venv -> lint -> focused pytest -> full suite flow.                      |
 | T2  | repo-testing          | repo-testing          | Y                | Y                  | Places validation tests under tests and keeps API-boundary assertions.             |
 | E1  | repo-auth-entra       | repo-auth-entra       | Y                | Y                  | Prioritizes ENTRA vars, audience/scope/tenant, and role checks for 401 triage.     |
-| E2  | repo-auth-entra       | repo-auth-entra       | Y                | Y                  | Correctly explains Todos.Read/Todos.Write and write-implies-read behavior.         |
+| E2  | repo-auth-entra       | repo-auth-entra       | Y                | Y                  | Correctly explains Users.Read/Users.Write and write-implies-read behavior.         |
 | M1  | repo-migration-safety | repo-migration-safety | Y                | Y                  | Covers revision integrity, safe sequencing, and migration validation.              |
 | M2  | repo-migration-safety | repo-migration-safety | Y                | Y                  | Correctly prioritizes migration hook script, auth mode, and revision chain checks. |
 | S1  | repo-doc-sync         | repo-doc-sync         | Y                | Y                  | Identifies README and auth/ops docs for behavior sync updates.                     |

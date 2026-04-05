@@ -95,7 +95,7 @@ Verification checklist (post-deploy)
 - Send test requests to `/health` and an API route; query App Insights with Kusto:
   - `requests | where timestamp > ago(30m) | summarize count()` -- should be > 0
   - `dependencies | where timestamp > ago(30m) | summarize count()`
-  - `requests | where name contains "/api/v1/todos"` to confirm correct routes
+  - `requests | where name contains "/api/v1/users"` to confirm correct routes
 - Confirm that request and dependency spans share the same `operation_Id`/trace id for correlation.
 
 Files to inspect in this repo

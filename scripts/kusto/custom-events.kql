@@ -1,13 +1,13 @@
 let windowStart = ago(60m);
 customEvents
 | where timestamp >= windowStart
-| where name startswith "todo."
+| where name startswith "user."
 | project
     timestamp,
     operation_Id,
     operation_Name,
     name,
-    todo_action = tostring(customDimensions["todo.action"]),
-    todo_id = tostring(customDimensions["todo.id"])
+    user_action = tostring(customDimensions["user.action"]),
+    user_id = tostring(customDimensions["user.id"])
 | order by timestamp desc
 | take 400

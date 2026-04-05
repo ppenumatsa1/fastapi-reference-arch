@@ -11,10 +11,10 @@ fastapi-reference-arch/
 │   │       ├── __init__.py
 │   │       ├── routers/
 │   │       │   ├── __init__.py
-│   │       │   └── todos.py
+│   │       │   └── users.py
 │   │       └── schemas/
 │   │           ├── __init__.py
-│   │           └── todos.py
+│   │           └── users.py
 │   ├── core/
 │   │   ├── __init__.py
 │   │   ├── config.py
@@ -30,11 +30,10 @@ fastapi-reference-arch/
 │   │   ├── observability/
 │   │   │   ├── __init__.py
 │   │   │   └── telemetry.py
-│   │   ├── security/
 │   │   └── utils/
 │   ├── modules/
 │   │   ├── __init__.py
-│   │   └── todos/
+│   │   └── users/
 │   │       ├── __init__.py
 │   │       ├── mapper.py
 │   │       ├── model.py
@@ -44,7 +43,7 @@ fastapi-reference-arch/
 ├── alembic/
 │   ├── env.py
 │   └── versions/
-│       └── 20241205_create_todos_table.py
+│       └── 20241205_create_users_table.py
 ├── infra/
 │   ├── bicep/
 │   │   ├── main.bicep
@@ -79,7 +78,7 @@ fastapi-reference-arch/
 │   └── verify_deployment.sh
 ├── tests/
 │   ├── conftest.py
-│   └── test_todos.py
+│   └── test_users.py
 ├── docs/
 │   ├── guides/
 │   │   ├── error-contract.md
@@ -103,15 +102,15 @@ fastapi-reference-arch/
 
 - Files/directories: `snake_case`
 - Classes: `PascalCase`
-- Routes: plural nouns (`/todos`, `/api/v1/todos`)
-- Services/repositories: mirror entity names (`TodoService`, `TodoRepository`)
+- Routes: plural nouns (`/users`, `/api/v1/users`)
+- Services/repositories: mirror entity names (`UserService`, `UserRepository`)
 
 ## Directory Purposes
 
 - **app/**: FastAPI application code
   - **api/v1/**: versioned HTTP layer (routers + API contract schemas)
   - **modules/**: feature modules that contain business logic and persistence
-    - **modules/todos/**: internal todo model, service, repository, schemas, and mapping helpers
+    - **modules/users/**: internal user model, service, repository, schemas, and mapping helpers
   - **core/**: shared infrastructure (config, database, exceptions, logging, observability)
 - **alembic/**: database migration scripts
 - **infra/**: infrastructure-as-code (Bicep), deployment hooks, and scripts
@@ -128,7 +127,7 @@ fastapi-reference-arch/
 The structure separates external API contracts from internal feature implementation:
 
 - **API boundary (`app/api/v1`)**: request/response contracts and route declarations that are version-specific
-- **Feature internals (`app/modules/todos`)**: business logic, data access, and persistence models that should stay reusable across API versions
+- **Feature internals (`app/modules/users`)**: business logic, data access, and persistence models that should stay reusable across API versions
 - **Infrastructure (`app/core`)**: platform concerns such as config, db lifecycle, middleware, logging, and telemetry
 
 This separation:

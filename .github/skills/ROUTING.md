@@ -26,11 +26,10 @@ Use this mapping during pilot validation.
 - "Why is pytest failing?"
 - "Add tests for this endpoint/service behavior"
 
-## Route To `repo-auth-entra`
+## Route To `repo-auth-entra` (auth-enabled variants only)
 
-- "Set up Entra auth for this API"
-- "Why is token validation failing?"
-- "How do Todos.Read/Todos.Write roles work here?"
+- This repository variant is no-auth by default.
+- Use only if auth is explicitly reintroduced in a future variant.
 
 ## Route To `repo-migration-safety`
 

@@ -75,7 +75,7 @@ def setup_telemetry() -> None:
 
         configure_azure_monitor(
             connection_string=settings.applicationinsights_connection_string,
-            logger_name="todo_api",
+            logger_name="user_api",
             span_processors=[_SpanNoiseFilterProcessor()],
         )
         _telemetry_configured = True

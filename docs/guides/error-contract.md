@@ -10,7 +10,7 @@ Raised from `AppError` subclasses and mapped by global handlers.
 {
   "error": {
     "code": "not_found",
-    "message": "Todo not found"
+    "message": "User not found"
   }
 }
 ```
@@ -27,8 +27,8 @@ Returned for request validation failures.
   },
   "details": [
     {
-      "loc": ["body", "title"],
-      "msg": "Value error, title must not be empty or whitespace",
+      "loc": ["body", "first_name"],
+      "msg": "Value error, first_name must not be empty or whitespace",
       "type": "value_error"
     }
   ]

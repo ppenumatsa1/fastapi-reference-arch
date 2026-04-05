@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "todo-api"
+name = "user-api"
 version = "0.1.0"
-description = "Reference FastAPI TODO service with PostgreSQL"
+description = "Reference FastAPI User service with PostgreSQL"
 authors = [{ name = "Example", email = "example@example.com" }]
 license = { text = "MIT" }
 requires-python = ">=3.11"
@@ -19,7 +19,6 @@ dependencies = [
 	"aiosqlite==0.20.0",
 	"pydantic-settings==2.3.4",
 	"python-dotenv==1.0.1",
-	"PyJWT[crypto]==2.10.1",
 	"azure-identity==1.19.0",
 	# Azure / telemetry
 	"azure-monitor-opentelemetry==1.6.4",

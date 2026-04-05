@@ -1,10 +1,10 @@
 # fastapi-reference-arch
 
-Production-ready FastAPI reference implementing a TODO CRUD service backed by PostgreSQL and SQLAlchemy. The template (root folder name `fastapi-reference-arch`) showcases a versioned API boundary plus feature modules (`api/v1` + `modules`) and automation hooks for Azure Bicep deployments.
+Production-ready FastAPI reference implementing a User CRUD service backed by PostgreSQL and SQLAlchemy. The template (root folder name `fastapi-reference-arch`) showcases a versioned API boundary plus feature modules (`api/v1` + `modules`) and automation hooks for Azure Bicep deployments.
 
 ## Goal
 
-Provide a reference-grade TODO management API that demonstrates FastAPI best practices, CRUD workflows, and operational readiness for Azure deployments—so new greenfield projects can start from a minimal yet well-structured baseline and layer additional features on top. This README is meant to be enough for a new developer to clone, run locally with Docker Compose, and deploy to Azure with `azd`.
+Provide a reference-grade User management API that demonstrates FastAPI best practices, CRUD workflows, and operational readiness for Azure deployments—so new greenfield projects can start from a minimal yet well-structured baseline and layer additional features on top. This README is meant to be enough for a new developer to clone, run locally with Docker Compose, and deploy to Azure with `azd`.
 
 ## Features
 
@@ -43,7 +43,7 @@ cp .env.example .env
 make setup
 ```
 
-This starts the Docker Compose stack, runs Alembic migrations, and seeds sample TODOs automatically. Logs: `docker compose logs -f api`. Stop: `make down`. Optional direct app run while DB is up: `uvicorn app.main:app --reload`. To verify the local stack: `./scripts/verify_deployment.sh --env local` (defaults to `http://localhost:8000`).
+This starts the Docker Compose stack, runs Alembic migrations, and seeds sample Users automatically. Logs: `docker compose logs -f api`. Stop: `make down`. Optional direct app run while DB is up: `uvicorn app.main:app --reload`. To verify the local stack: `./scripts/verify_deployment.sh --env local` (defaults to `http://localhost:8000`).
 
 Environment flags worth tweaking while developing:
 
@@ -55,7 +55,7 @@ Environment flags worth tweaking while developing:
 
 | Target                  | Purpose                                                                                          |
 | ----------------------- | ------------------------------------------------------------------------------------------------ |
-| `make setup`            | Installs Python deps, installs `pre-commit`, applies Alembic migrations, seeds sample TODO rows. |
+| `make setup`            | Installs Python deps, installs `pre-commit`, applies Alembic migrations, seeds sample User rows. |
 | `make up` / `make down` | Starts or stops the Docker Compose stack (API + PostgreSQL).                                     |
 | `make up-build`         | Rebuilds Docker images (e.g., after dependency changes) before starting the stack.               |
 | `make lint`             | Runs `ruff check` via `scripts/lint.sh`.                                                         |
@@ -68,7 +68,6 @@ Run `make help` to see the latest list as new automation hooks are added.
 
 - Template implementation rules: [docs/guides/template-playbook.md](docs/guides/template-playbook.md)
 - Error response envelope and examples: [docs/guides/error-contract.md](docs/guides/error-contract.md)
-- Entra auth setup and verification modes: [docs/guides/auth-setup.md](docs/guides/auth-setup.md)
 - Observability validation and KQL workflow: [docs/guides/observability-validation.md](docs/guides/observability-validation.md)
 
 ## Azure Deployment (azd)
@@ -137,9 +136,8 @@ Runs automated tests to verify health, DB reads, and writes. The script defaults
 
 Config resolution behavior:
 
-- `--base-url` or `--env azure` defaults to auth on and telemetry-check mode on.
-- Local target defaults to auth off and telemetry-check mode off.
-- For auth inputs, precedence is: CLI args -> environment vars -> `azd env` values.
+- `--base-url` or `--env azure` defaults to telemetry-check mode on.
+- Local target defaults to telemetry-check mode off.
 
 **Note:** On first run, `azd up` will interactively prompt you to:
 
@@ -155,7 +153,7 @@ See [docs/design/projectstructure.md](docs/design/projectstructure.md) for the f
 
 ## Database Authentication Modes
 
-- **Local (password mode)**: Docker Compose supplies `todo_user` / `todo_pass` for the bundled PostgreSQL container. Override via `.env` if needed.
+- **Local (password mode)**: Docker Compose supplies `user_user` / `user_pass` for the bundled PostgreSQL container. Override via `.env` if needed.
 - **Azure (Microsoft Entra mode)**: The app uses the Container Apps user-assigned managed identity for PostgreSQL login. Runtime acquires short-lived Entra access tokens and does not rely on `DATABASE_PASSWORD`.
 
 ## Migrations + Config
@@ -163,7 +161,7 @@ See [docs/design/projectstructure.md](docs/design/projectstructure.md) for the f
 - Azure: postdeploy hook runs migrations and seeds on every `azd deploy`.
 - Azure migration hook uses Entra token auth (`DB_AUTH_MODE=aad`) and the configured PostgreSQL Entra admin identity.
 - Local/CI: `bash ./infra/scripts/run_migrations.sh` (password mode for local Docker defaults, or Entra token mode when `DB_AUTH_MODE=aad`).
-- Local defaults: host `postgres`, port `5432`, user `todo_user`, password `todo_pass`, db `todo_db`, `APP_ENV=development`, `LOG_LEVEL=INFO`.
+- Local defaults: host `localhost`, port `5432`, user `user_user`, password `user_pass`, db `user_db`, `APP_ENV=development`, `LOG_LEVEL=INFO`.
 - Azure env (Entra mode): `DB_AUTH_MODE=aad`, `DATABASE_HOST=<postgres-fqdn>`, `DATABASE_NAME=postgres`, `DATABASE_USER=<managed-identity-name>`, `AZURE_CLIENT_ID=<uami-client-id>`.
 
 ## Telemetry

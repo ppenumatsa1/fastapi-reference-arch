@@ -2,8 +2,6 @@
 
 from app.core.exceptions.app_exceptions import (
     AppError,
-    AuthenticationError,
-    AuthorizationError,
     BadRequestError,
     ConflictError,
     NotFoundError,
@@ -12,8 +10,6 @@ from app.core.exceptions.app_exceptions import (
 
 __all__ = [
     "AppError",
-    "AuthenticationError",
-    "AuthorizationError",
     "BadRequestError",
     "ConflictError",
     "NotFoundError",

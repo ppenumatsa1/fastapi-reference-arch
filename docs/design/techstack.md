@@ -10,7 +10,7 @@
 | Lint/Format       | Ruff, Black, isort     | Enforced before pre-commit adoption.                                        |
 | Testing           | pytest, httpx          | Async API tests run through HTTPX + ASGI transport fixtures.                |
 | CI/CD             | Makefile + scripts     | `make lint`/`make test` are the current quality gates.                      |
-| Future            | Azure Bicep + Entra ID | Reserved for infrastructure/auth follow-up.                                 |
+| Future            | Azure Bicep hardening  | Reserved for additional network/security hardening follow-up.               |
 
 ## Developer Workflow Commands
 

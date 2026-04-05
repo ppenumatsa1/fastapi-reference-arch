@@ -49,17 +49,3 @@ class PersistenceError(AppError):
 
     status_code = 500
     code = "persistence_error"
-
-
-class AuthenticationError(AppError):
-    """Raised when authentication fails or credentials are invalid."""
-
-    status_code = 401
-    code = "authentication_error"
-
-
-class AuthorizationError(AppError):
-    """Raised when caller lacks required permissions."""
-
-    status_code = 403
-    code = "authorization_error"

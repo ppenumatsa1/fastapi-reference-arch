@@ -14,32 +14,8 @@
     "environmentVariables": {
       "value": [
         {
-          "name": "REQUIRE_AUTH",
-          "value": "${REQUIRE_AUTH=true}"
-        },
-        {
           "name": "ENABLE_TELEMETRY",
           "value": "${ENABLE_TELEMETRY=true}"
-        },
-        {
-          "name": "ENTRA_TENANT_ID",
-          "value": "${ENTRA_TENANT_ID}"
-        },
-        {
-          "name": "ENTRA_API_AUDIENCE",
-          "value": "${ENTRA_API_AUDIENCE}"
-        },
-        {
-          "name": "ENTRA_AUTHORITY",
-          "value": "${ENTRA_AUTHORITY=https://login.microsoftonline.com}"
-        },
-        {
-          "name": "ENTRA_JWKS_CACHE_TTL_SECONDS",
-          "value": "${ENTRA_JWKS_CACHE_TTL_SECONDS=3600}"
-        },
-        {
-          "name": "ENTRA_CLOCK_SKEW_SECONDS",
-          "value": "${ENTRA_CLOCK_SKEW_SECONDS=60}"
         }
       ]
     }

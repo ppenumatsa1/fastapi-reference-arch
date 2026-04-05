@@ -32,8 +32,8 @@ The suite validates:
 1. `requests` in last 30m
 2. `dependencies` in last 30m
 3. `traces` in last 30m
-4. `customEvents` with `todo.*` names in last 60m
-5. `customMetrics` with `todo.*` names in last 60m
+4. `customEvents` with `user.*` names in last 60m
+5. `customMetrics` with `user.*` names in last 60m
 
 Expected success message:
 
@@ -64,13 +64,13 @@ This query shows a chronological union of:
 
 ## Verified Example (March 7, 2026)
 
-A `GET /api/v1/todos/{todo_id}` operation showed:
+A `GET /api/v1/users/{user_id}` operation showed:
 
 1. request row with `resultCode=200`
 2. DB dependency (`connect`)
-3. structured traces (`Get todo ...`)
-4. business trace (`todo.get.completed`)
-5. matching `customEvent` (`todo.get.completed`, with `todo.action` and `todo.id`)
+3. structured traces (`Get user ...`)
+4. business trace (`user.get.completed`)
+5. matching `customEvent` (`user.get.completed`, with `user.action` and `user.id`)
 6. `POST /v2/track` dependency to App Insights ingestion endpoint
 
 ## Notes On Correlation
@@ -78,7 +78,7 @@ A `GET /api/v1/todos/{todo_id}` operation showed:
 1. `customEvents` are emitted with operation tags so they can be correlated by `operation_Id`.
 2. `customMetrics` may not always carry operation-level IDs in every ingestion path.
 3. For operation-centric debugging, prefer request + dependency + trace + customEvent.
-4. For KPI/trend analysis, use `customMetrics` (`todo.operations.count`, `todo.operations.duration.ms`).
+4. For KPI/trend analysis, use `customMetrics` (`user.operations.count`, `user.operations.duration.ms`).
 
 ## Troubleshooting
 
