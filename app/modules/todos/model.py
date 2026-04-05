@@ -1,18 +1,17 @@
-"""SQLAlchemy ORM model for user items."""
+"""SQLAlchemy ORM model for todo items."""
 
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, func
 
 from app.core.database import Base
 
 
-class User(Base):
-    __tablename__ = "users"
+class Todo(Base):
+    __tablename__ = "todos"
 
     id = Column(Integer, primary_key=True, index=True)
-    first_name = Column(String(100), nullable=False)
-    last_name = Column(String(100), nullable=False)
-    email = Column(String(320), nullable=False, unique=True, index=True)
-    is_active = Column(Boolean, default=True, nullable=False)
+    title = Column(String(255), nullable=False)
+    description = Column(String(1024), nullable=True)
+    is_completed = Column(Boolean, default=False, nullable=False)
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),

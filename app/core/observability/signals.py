@@ -12,18 +12,18 @@ from opentelemetry import metrics, trace
 
 from app.core.config import get_settings
 
-_meter = metrics.get_meter("user_api.app")
+_meter = metrics.get_meter("todo_api.app")
 
-_user_ops_counter = _meter.create_counter(
-    name="user.operations.count",
+_todo_ops_counter = _meter.create_counter(
+    name="todo.operations.count",
     unit="1",
-    description="Count of user operations by action/outcome.",
+    description="Count of todo operations by action/outcome.",
 )
 
-_user_ops_duration = _meter.create_histogram(
-    name="user.operations.duration.ms",
+_todo_ops_duration = _meter.create_histogram(
+    name="todo.operations.duration.ms",
     unit="ms",
-    description="Duration of user operations in milliseconds.",
+    description="Duration of todo operations in milliseconds.",
 )
 
 
@@ -39,20 +39,20 @@ def emit_business_event(name: str, attributes: dict[str, object] | None = None) 
     _send_custom_event(name=name, attributes=normalized)
 
 
-def record_user_operation_metric(
+def record_todo_operation_metric(
     *,
     action: str,
     outcome: str,
     duration_ms: float,
 ) -> None:
-    """Record low-cardinality custom metrics for user operations."""
+    """Record low-cardinality custom metrics for todo operations."""
 
     attrs = {
-        "user.action": action,
-        "user.outcome": outcome,
+        "todo.action": action,
+        "todo.outcome": outcome,
     }
-    _user_ops_counter.add(1, attributes=attrs)
-    _user_ops_duration.record(duration_ms, attributes=attrs)
+    _todo_ops_counter.add(1, attributes=attrs)
+    _todo_ops_duration.record(duration_ms, attributes=attrs)
 
 
 def _to_otel_attrs(

@@ -24,9 +24,9 @@ description: Use for questions or changes about project layering, module boundar
 - docs/guides/template-playbook.md
 - docs/design/userflow.md
 - app/main.py
-- app/api/v1/routers/users.py
-- app/modules/users/service.py
-- app/modules/users/repository.py
+- app/api/v1/routers/todos.py
+- app/modules/todos/service.py
+- app/modules/todos/repository.py
 
 ## Rules
 

@@ -20,15 +20,14 @@ fi
 echo "Running database migrations..."
 
 DB_AUTH_MODE="${DB_AUTH_MODE:-password}"
-DATABASE_USER="${DATABASE_USER:-${USER_DB_USER:-user_user}}"
-DATABASE_PASSWORD="${DATABASE_PASSWORD:-${USER_DB_PASSWORD:-}}"
+DATABASE_USER="${DATABASE_USER:-${TODO_DB_USER:-todo_user}}"
+DATABASE_PASSWORD="${DATABASE_PASSWORD:-${TODO_DB_PASSWORD:-}}"
 DATABASE_HOST="${DATABASE_HOST:-${POSTGRES_FQDN:-localhost}}"
 DATABASE_PORT="${DATABASE_PORT:-5432}"
-DATABASE_NAME="${DATABASE_NAME:-${POSTGRES_DB:-user_db}}"
+DATABASE_NAME="${DATABASE_NAME:-${POSTGRES_DB:-todo_db}}"
 POSTGRES_ENTRA_ADMIN_NAME="${POSTGRES_ENTRA_ADMIN_NAME:-}"
 
-AZD_VALUES_JSON='{}'
-if command -v azd >/dev/null 2>&1 && [ -n "${AZURE_ENV_NAME:-}" ]; then
+if command -v azd >/dev/null 2>&1; then
   AZD_VALUES_JSON=$(azd env get-values --output json 2>/dev/null || echo '{}')
   if [ "$DB_AUTH_MODE" = "password" ]; then
     DB_AUTH_MODE=$(echo "$AZD_VALUES_JSON" | jq -r '.DB_AUTH_MODE // "password"')
@@ -66,7 +65,7 @@ if [ "$DB_AUTH_MODE" = "password" ] && [ -z "$DATABASE_PASSWORD" ]; then
     echo "Fetching database password from Key Vault $VAULT_NAME..."
     DATABASE_PASSWORD=$(az keyvault secret show \
       --vault-name "$VAULT_NAME" \
-      --name "user-db-password" \
+      --name "todo-db-password" \
       --query value \
       -o tsv 2>/dev/null || true)
   fi
@@ -74,7 +73,7 @@ fi
 
 # Local dev fallback: use compose defaults when pointing at the bundled postgres service
 if [ "$DB_AUTH_MODE" = "password" ] && [ -z "$DATABASE_PASSWORD" ] && { [ "$DATABASE_HOST" = "postgres" ] || [ "$DATABASE_HOST" = "localhost" ]; }; then
-  DATABASE_PASSWORD="user_pass"
+  DATABASE_PASSWORD="todo_pass"
 fi
 
 if [ -z "$DATABASE_PASSWORD" ]; then

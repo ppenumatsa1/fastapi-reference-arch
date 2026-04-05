@@ -1,7 +1,7 @@
-"""add users updated_at trigger
+"""add todos updated_at trigger
 
-Revision ID: 20260320_users_updated_at_trg
-Revises: 20241205_create_users
+Revision ID: 20260320_todos_updated_at_trg
+Revises: 20241205_create_todos
 Create Date: 2026-03-20 14:12:00
 """
 
@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from alembic import op
 
-revision = "20260320_users_updated_at_trg"
-down_revision = "20241205_create_users"
+revision = "20260320_todos_updated_at_trg"
+down_revision = "20241205_create_todos"
 branch_labels = None
 depends_on = None
 
@@ -22,7 +22,7 @@ def upgrade() -> None:
 
     op.execute(
         """
-        CREATE OR REPLACE FUNCTION set_users_updated_at()
+        CREATE OR REPLACE FUNCTION set_todos_updated_at()
         RETURNS TRIGGER AS $$
         BEGIN
             NEW.updated_at = NOW();
@@ -33,10 +33,10 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE TRIGGER trg_users_set_updated_at
-        BEFORE UPDATE ON users
+        CREATE TRIGGER trg_todos_set_updated_at
+        BEFORE UPDATE ON todos
         FOR EACH ROW
-        EXECUTE FUNCTION set_users_updated_at();
+        EXECUTE FUNCTION set_todos_updated_at();
         """
     )
 
@@ -46,5 +46,5 @@ def downgrade() -> None:
     if bind.dialect.name != "postgresql":
         return
 
-    op.execute("DROP TRIGGER IF EXISTS trg_users_set_updated_at ON users;")
-    op.execute("DROP FUNCTION IF EXISTS set_users_updated_at();")
+    op.execute("DROP TRIGGER IF EXISTS trg_todos_set_updated_at ON todos;")
+    op.execute("DROP FUNCTION IF EXISTS set_todos_updated_at();")

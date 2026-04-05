@@ -97,16 +97,16 @@ validate_counts() {
   req_count="$(extract_scalar_count "requests | where timestamp > ago(30m) | count")"
   dep_count="$(extract_scalar_count "dependencies | where timestamp > ago(30m) | count")"
   trace_count="$(extract_scalar_count "traces | where timestamp > ago(30m) | count")"
-  custom_event_count="$(extract_scalar_count "customEvents | where timestamp > ago(60m) | where name startswith 'user.' | count")"
-  custom_metric_count="$(extract_scalar_count "customMetrics | where timestamp > ago(60m) | where name startswith 'user.' | count")"
+  custom_event_count="$(extract_scalar_count "customEvents | where timestamp > ago(60m) | where name startswith 'todo.' | count")"
+  custom_metric_count="$(extract_scalar_count "customMetrics | where timestamp > ago(60m) | where name startswith 'todo.' | count")"
 
   echo ""
   echo "Validation (last 30m):"
   echo "  requests     : $req_count"
   echo "  dependencies : $dep_count"
   echo "  traces       : $trace_count"
-  echo "  customEvents : $custom_event_count (user.* in last 60m)"
-  echo "  customMetrics: $custom_metric_count (user.* in last 60m)"
+  echo "  customEvents : $custom_event_count (todo.* in last 60m)"
+  echo "  customMetrics: $custom_metric_count (todo.* in last 60m)"
 
   if [[ "$req_count" -lt 1 ]]; then
     echo "Validation failed: expected at least 1 request row." >&2
@@ -124,12 +124,12 @@ validate_counts() {
   fi
 
   if [[ "$custom_event_count" -lt 1 ]]; then
-    echo "Validation failed: expected at least 1 user.* custom event row." >&2
+    echo "Validation failed: expected at least 1 todo.* custom event row." >&2
     exit 2
   fi
 
   if [[ "$custom_metric_count" -lt 1 ]]; then
-    echo "Validation failed: expected at least 1 user.* custom metric row." >&2
+    echo "Validation failed: expected at least 1 todo.* custom metric row." >&2
     exit 2
   fi
 

@@ -1,34 +1,55 @@
 # Issues and Learnings
 
-## 1) Broad text replacement introduced contract drift
+## 1) Entra app registration automation in Bicep was not feasible
 
 - Symptom:
-  - Endpoint names changed to users, but payload fields still resembled the old task-oriented contract.
+  - Need repeatable API/client app registrations with role assignment during `azd` provisioning.
 - Root cause:
-  - Mechanical rename replaced entity names without re-shaping data model semantics.
+  - Current IaC path uses Bicep, and app registration lifecycle is not managed as a first-class Bicep resource in this template.
 - Fix:
-  - Reworked API/module schemas, ORM model, migration, tests, and seed data around the user contract (`first_name`, `last_name`, `email`, `is_active`).
+  - Implemented idempotent app registration + role + secret automation in `infra/hooks/preprovision.sh` using `az ad` and Graph (`az rest`) operations.
 - Learning:
-  - Perform structural contract review after large rename operations, not only string replacement checks.
+  - Keep identity bootstrap in preprovision hooks when IaC provider does not cleanly cover Entra object lifecycle.
 
-## 2) No-auth scope required explicit script/docs cleanup
+## 2) Single role model was too coarse for API authorization
 
 - Symptom:
-  - Deployment verification and guides still referenced auth toggles and token workflows.
+  - A single `Todos.ReadWrite` role prevented least-privilege access for read-only clients.
 - Root cause:
-  - Original template behavior included auth helpers that no longer apply to this variant.
+  - Route authorization originally used one global router dependency.
 - Fix:
-  - Removed auth runtime surfaces and aligned verification/docs to no-auth behavior while preserving DB Entra mode for PostgreSQL access in Azure.
+  - Split to `Todos.Read` and `Todos.Write` route-level checks and retained write-implies-read behavior in dependency logic.
 - Learning:
-  - Treat operational scripts and docs as first-class deliverables during scope changes.
+  - Define read/write roles early so access boundaries map directly to endpoint behavior.
 
-## 3) Observability queries lagged behind API/domain rename
+## 3) Auth smoke tests required better env handoff
 
 - Symptom:
-  - KQL suite queries still filtered on legacy endpoints and outdated custom dimensions.
+  - `verify_deployment.sh --base-url ...` required manual token arguments in every run.
 - Root cause:
-  - Query assets are decoupled from app code and require deliberate updates.
+  - Script only read in-process shell env variables.
 - Fix:
-  - Updated KQL queries to `/api/v1/users` and `user.*` dimensions/metrics.
+  - Added azd env fallback loading for `ENTRA_*` values when auth mode is enabled.
 - Learning:
-  - Include observability artifacts in feature migration checklists from the start.
+  - Deployment smoke scripts should consume active deployment state (`azd env`) by default.
+
+## 4) Token issuance failed after first automation run (`invalid_client`)
+
+- Symptom:
+  - Remote smoke test failed to get token with `AADSTS7000215: Invalid client secret provided`.
+- Root cause:
+  - Existing stored secret in azd env was stale/invalid for current client app credentials.
+- Fix:
+  - Rotated client secret with `az ad app credential reset --append` and updated `ENTRA_CLIENT_SECRET` in azd env.
+- Learning:
+  - Add secret-rotation fallback guidance to runbooks for first-time or drifted tenant states.
+
+## Current Snapshot (validated)
+
+- `make lint` and `make test` passed (`28` tests).
+- `azd provision --preview` completed successfully.
+- `azd up` completed successfully and deployed endpoint:
+  - `https://azacat4e7cr2gwaes2.greenisland-c16ef19f.canadacentral.azurecontainerapps.io`
+- Post-deploy checks passed in requested order:
+  - `sleep 10` -> `verify_deployment.sh --base-url ...`
+  - `sleep 10` -> `scripts/kusto/run-observability-suite.sh`

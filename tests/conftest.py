@@ -11,7 +11,7 @@ from app.main import app
 
 @pytest_asyncio.fixture()
 async def async_session_factory() -> async_sessionmaker[AsyncSession]:
-    fd, db_path = tempfile.mkstemp(prefix="user-test-", suffix=".db")
+    fd, db_path = tempfile.mkstemp(prefix="todo-test-", suffix=".db")
     os.close(fd)
 
     engine = create_async_engine(

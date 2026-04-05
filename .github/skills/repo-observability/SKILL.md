@@ -45,7 +45,7 @@ description: Use for telemetry validation, KQL checks, and troubleshooting Appli
 
 ## Rules
 
-1. Validate both platform telemetry (requests, dependencies, traces) and business telemetry (user.\* events/metrics).
+1. Validate both platform telemetry (requests, dependencies, traces) and business telemetry (todo.\* events/metrics).
 2. Wait for ingestion delay before declaring telemetry missing.
 3. Prefer operation-centric analysis with request + dependency + trace + customEvent correlation.
 4. Treat this skill as repository validation-first: verify expected instrumentation and data flow before escalating to platform-level incident diagnostics.

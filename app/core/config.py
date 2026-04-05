@@ -16,18 +16,18 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "user-api"
+    app_name: str = "todo-api"
     api_prefix: str = "/api/v1"
     app_env: str = "development"
     app_debug: bool = True
 
     # Database connection settings
     db_auth_mode: str = Field(default="password", alias="DB_AUTH_MODE")
-    database_host: str = "localhost"
+    database_host: str = "postgres"
     database_port: int = 5432
-    database_user: str = "user_user"
-    database_password: str = "user_pass"
-    database_name: str = "user_db"
+    database_user: str = "todo_user"
+    database_password: str = "todo_pass"
+    database_name: str = "todo_db"
     azure_client_id: str | None = Field(default=None, alias="AZURE_CLIENT_ID")
     database_echo: bool = False
     database_pool_size: int = Field(default=5, alias="DATABASE_POOL_SIZE")
@@ -52,6 +52,23 @@ class Settings(BaseSettings):
     # Application Insights
     applicationinsights_connection_string: str | None = None
     enable_telemetry: bool = Field(default=False, alias="ENABLE_TELEMETRY")
+
+    # Microsoft Entra authentication
+    require_auth: bool = Field(default=False, alias="REQUIRE_AUTH")
+    entra_tenant_id: str | None = Field(default=None, alias="ENTRA_TENANT_ID")
+    entra_api_audience: str | None = Field(default=None, alias="ENTRA_API_AUDIENCE")
+    entra_authority: str = Field(
+        default="https://login.microsoftonline.com",
+        alias="ENTRA_AUTHORITY",
+    )
+    entra_jwks_cache_ttl_seconds: int = Field(
+        default=3600,
+        alias="ENTRA_JWKS_CACHE_TTL_SECONDS",
+    )
+    entra_clock_skew_seconds: int = Field(
+        default=60,
+        alias="ENTRA_CLOCK_SKEW_SECONDS",
+    )
 
     log_level: str = "INFO"
 
